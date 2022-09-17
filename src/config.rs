@@ -1,4 +1,5 @@
 use std::{
+    env,
     fmt::Display,
     fs::{self, File},
     io::{self, Write},
@@ -115,6 +116,19 @@ impl Default for SmarthomeServer {
             password: String::new(),
             token: "-".repeat(32),
         }
+    }
+}
+
+pub fn file_path() -> Option<String> {
+    match env::var("HOME") {
+        Ok(home) => {
+            if let Ok(xdg_home) = env::var("XDG_CONFIG_HOME") {
+                Some(format!("{}/smarthome-cli-rs/config.toml", xdg_home))
+            } else {
+                Some(format!("{}/.config/smarthome-cli-rs/config.toml", home))
+            }
+        }
+        Err(_) => None
     }
 }
 

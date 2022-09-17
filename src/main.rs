@@ -1,77 +1,33 @@
-use std::{fmt::format, process};
+use std::process;
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
+use cli::{Args, Command, HmsCommand, HmsScriptCommand};
 use log::error;
 use reqwest::StatusCode;
 use smarthome_sdk_rs::{Auth, Client, User};
 
+mod cli;
 mod config;
 mod repl;
-
-#[derive(Parser)]
-#[clap(author, version, about)]
-struct Args {
-    /// Selects the target Smarthome server by the provided ID
-    #[clap(short, long, value_parser)]
-    server: Option<String>,
-
-    /// The path where the configuration file should be located
-    #[clap(short, long, value_parser)]
-    config_path: Option<String>,
-
-    /// Smarthome subcommands
-    #[clap(subcommand)]
-    subcommand: Command,
-}
-
-#[derive(Subcommand)]
-enum Command {
-    /// Homescript subcommands
-    #[clap(subcommand)]
-    Hms(HmsCommand),
-}
-
-#[derive(Subcommand)]
-enum HmsCommand {
-    /// Interactive Homescript live terminal
-    Repl,
-    /// Script subcommands
-    #[clap(subcommand)]
-    Script(HmsScriptCommand),
-}
-
-#[derive(Subcommand)]
-enum HmsScriptCommand {
-    /// Create a new Homescript locally and on the remote
-    New {
-        /// A unique ID for the new script
-        id: String,
-        #[clap(short, long, value_parser)]
-        /// A friendly name for the new script
-        name: Option<String>,
-        /// A workspace to be associated with the new script
-        #[clap(short, long, value_parser)]
-        workspace: Option<String>,
-    },
-    /// Clone an existing script from the server to the local FS
-    Clone,
-    /// Delete a script from the local FS and the server
-    Del,
-    /// Push local changes to the server
-    Push,
-    /// Pull any upstream changes to local FS
-    Pull,
-}
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
     let args = Args::parse();
 
+    // Select an appropiate configuration file path
     let config_path = match args.config_path {
         Some(from_args) => from_args,
-        None => "config.toml".to_string(),
+        None => config::file_path().unwrap_or_else(|| {
+            error!("Your home directory could not be determined.\nHINT: To use this program, please use the manual config file path command-line-flag");
+            process::exit(1);
+        }),
     };
+
+    if args.subcommand == Command::Config {
+        println!("Configuration file is located at `{config_path}`");
+        process::exit(0);
+    }
 
     // Read or create the configuration file
     let conf = match config::read_config(&config_path) {
@@ -95,7 +51,7 @@ async fn main() {
         }
     };
 
-    // Create a Smarthome client
+    // Select a server profile based on command line arguments or the default
     let profile = match args.server {
         Some(from_args) => match conf.servers.iter().find(|server| server.id == from_args) {
             Some(found) => found,
@@ -107,6 +63,7 @@ async fn main() {
         None => &conf.servers[0],
     };
 
+    // Create a Smarthome client
     let client = match Client::new(
         &profile.url,
         match profile.token.is_empty() {
@@ -161,5 +118,6 @@ async fn main() {
                 HmsScriptCommand::Pull => println!("Pull"),
             },
         },
+        Command::Config => unreachable!("Config should have been covered before")
     }
 }
