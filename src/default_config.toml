@@ -1,0 +1,10 @@
+[homescript]
+lint_on_push = true
+use_repl_history = true
+
+[[servers]]
+id = 'default'
+url = 'http://smarthome.box'
+username = ''
+password = ''
+token = '--------------------------------'
