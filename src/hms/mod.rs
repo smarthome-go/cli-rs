@@ -1,14 +1,12 @@
-use std::error;
-
+use crate::cli::{HmsCommand, HmsScriptCommand};
 use smarthome_sdk_rs::Client;
 
-use crate::cli::{HmsCommand, HmsScriptCommand};
-use crate::repl;
+use self::errors::Error;
 
-pub async fn handle_subcommand(
-    command: HmsCommand,
-    client: Client,
-) -> Result<(), Box<dyn error::Error>> {
+mod errors;
+mod repl;
+
+pub async fn handle_subcommand(command: HmsCommand, client: Client) -> Result<(), Error> {
     match command {
         HmsCommand::Repl => repl::start(&client).await?,
         HmsCommand::Script(sub) => match sub {

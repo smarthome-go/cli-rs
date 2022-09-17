@@ -1,7 +1,7 @@
 use std::process;
 
 use clap::Parser;
-use cli::{Args, Command, HmsCommand, HmsScriptCommand};
+use cli::{Args, Command};
 use log::error;
 use reqwest::StatusCode;
 use smarthome_sdk_rs::{Auth, Client, User};
@@ -10,7 +10,6 @@ mod cli;
 mod config;
 mod hms;
 mod power;
-mod repl;
 
 #[tokio::main]
 async fn main() {

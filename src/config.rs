@@ -6,7 +6,7 @@ use std::{
     path::Path,
 };
 
-use log::{debug, info};
+use log::debug;
 use serde::{Deserialize, Serialize};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -62,7 +62,7 @@ impl Display for ValidateError {
             Self::DuplicateID(id) => format!("Duplicate server ID: the ID `{id}` must be unique"),
             Self::InvalidToken { server_id, token, message } => format!("Malformed access token: token `{token}` at server `{server_id}` is invalid: {message}"),
             Self::EmptyUserName(id) => format!("No authentication provided for server `{id}`: token and username are both empty"),
-            Self::NoServers => format!("No servers specified: at least one (default) server must be specified to use this CLI")
+            Self::NoServers => "No servers specified: at least one (default) server must be specified to use this CLI".to_string(),
         })
     }
 }
@@ -128,7 +128,7 @@ pub fn file_path() -> Option<String> {
                 Some(format!("{}/.config/smarthome-cli-rs/config.toml", home))
             }
         }
-        Err(_) => None
+        Err(_) => None,
     }
 }
 
@@ -163,7 +163,7 @@ pub fn read_config(file_path: &str) -> Result<Option<Config>> {
 
 fn validate_config(config: Config) -> std::result::Result<Config, ValidateError> {
     let mut ids: Vec<&str> = Vec::with_capacity(config.servers.len());
-    if config.servers.len() == 0 {
+    if config.servers.is_empty() {
         return Err(ValidateError::NoServers);
     }
     for server in &config.servers {
@@ -188,7 +188,7 @@ fn validate_config(config: Config) -> std::result::Result<Config, ValidateError>
                         message: "Token does not have the length of 32 characters.",
                     });
                 }
-                if server.token.contains(" ") || !server.token.is_ascii() {
+                if server.token.contains(' ') || !server.token.is_ascii() {
                     return Err(ValidateError::InvalidToken {
                         token: server.token.clone(),
                         server_id: server.id.clone(),

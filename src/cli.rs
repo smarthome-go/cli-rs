@@ -16,7 +16,7 @@ pub struct Args {
     pub subcommand: Command,
 }
 
-#[derive(Subcommand, PartialEq)]
+#[derive(Subcommand, PartialEq, Eq)]
 pub enum Command {
     /// Power subcommands
     #[clap(subcommand)]
@@ -30,23 +30,17 @@ pub enum Command {
     Config,
 }
 
-#[derive(Subcommand, PartialEq)]
+#[derive(Subcommand, PartialEq, Eq)]
 pub enum PowerCommand {
     /// Toggles the power state of a switch
-    Toggle {
-        switch_id: String,
-    },
+    Toggle { switch_id: String },
     /// Activates a switch
-    On {
-        switch_id: String,
-    },
+    On { switch_id: String },
     /// Deactivates a switch
-    Off {
-        switch_id: String,
-    },
+    Off { switch_id: String },
 }
 
-#[derive(Subcommand, PartialEq)]
+#[derive(Subcommand, PartialEq, Eq)]
 pub enum HmsCommand {
     /// Interactive Homescript live terminal
     Repl,
@@ -55,7 +49,7 @@ pub enum HmsCommand {
     Script(HmsScriptCommand),
 }
 
-#[derive(Subcommand, PartialEq)]
+#[derive(Subcommand, PartialEq, Eq)]
 pub enum HmsScriptCommand {
     /// Create a new Homescript locally and on the remote
     New {

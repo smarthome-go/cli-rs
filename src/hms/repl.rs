@@ -5,7 +5,6 @@ use rustyline::error::ReadlineError;
 use rustyline::highlight::{Highlighter, MatchingBracketHighlighter};
 use rustyline::hint::HistoryHinter;
 use rustyline::validate::MatchingBracketValidator;
-use rustyline::Result;
 use rustyline::{Cmd, CompletionType, Config, EditMode, Editor, KeyEvent};
 use rustyline_derive::{Completer, Helper, Hinter, Validator};
 use smarthome_sdk_rs::Client;
@@ -48,7 +47,7 @@ impl Highlighter for ReplHelper {
     }
 }
 
-pub async fn start(client: &Client) -> Result<()> {
+pub async fn start(client: &Client) -> rustyline::Result<()> {
     let config = Config::builder()
         .history_ignore_space(true)
         .completion_type(CompletionType::List)
