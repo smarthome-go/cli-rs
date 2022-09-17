@@ -8,6 +8,8 @@ use smarthome_sdk_rs::{Auth, Client, User};
 
 mod cli;
 mod config;
+mod hms;
+mod power;
 mod repl;
 
 #[tokio::main]
@@ -98,26 +100,18 @@ async fn main() {
     };
 
     match args.subcommand {
-        Command::Hms(sub) => match sub {
-            HmsCommand::Repl => repl::start(&client).await.unwrap(),
-            HmsCommand::Script(sub) => match sub {
-                HmsScriptCommand::New {
-                    id,
-                    name,
-                    workspace,
-                } => {
-                    println!(
-                        "Creating id: `{id}` with name `{}` | Workspace: `{}`",
-                        name.unwrap_or_else(|| id.clone()),
-                        workspace.unwrap_or_else(|| "default".to_string())
-                    )
-                }
-                HmsScriptCommand::Clone => println!("Clone"),
-                HmsScriptCommand::Del => println!("Del"),
-                HmsScriptCommand::Push => println!("Push"),
-                HmsScriptCommand::Pull => println!("Pull"),
-            },
-        },
-        Command::Config => unreachable!("Config should have been covered before")
-    }
+        Command::Power(sub) => power::handle_subcommand(sub, client)
+            .await
+            .unwrap_or_else(|err| {
+                error!("{err}");
+                process::exit(1);
+            }),
+        Command::Hms(sub) => hms::handle_subcommand(sub, client)
+            .await
+            .unwrap_or_else(|err| {
+                error!("{err}");
+                process::exit(1);
+            }),
+        Command::Config => unreachable!("Config should have been covered before"),
+    };
 }

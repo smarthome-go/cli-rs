@@ -18,12 +18,32 @@ pub struct Args {
 
 #[derive(Subcommand, PartialEq)]
 pub enum Command {
+    /// Power subcommands
+    #[clap(subcommand)]
+    Power(PowerCommand),
+
     /// Homescript subcommands
     #[clap(subcommand)]
     Hms(HmsCommand),
 
     /// Displays the file path of the CLI's configuration file
     Config,
+}
+
+#[derive(Subcommand, PartialEq)]
+pub enum PowerCommand {
+    /// Toggles the power state of a switch
+    Toggle {
+        switch_id: String,
+    },
+    /// Activates a switch
+    On {
+        switch_id: String,
+    },
+    /// Deactivates a switch
+    Off {
+        switch_id: String,
+    },
 }
 
 #[derive(Subcommand, PartialEq)]
