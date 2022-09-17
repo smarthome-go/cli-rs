@@ -15,8 +15,8 @@ pub async fn handle_subcommand(
 ) -> Result<(), Error> {
     match command {
         PowerCommand::Draw => draw::power_draw(client, &config.power).await,
-        PowerCommand::Toggle { switch_id } => switch::toggle_power(client, &switch_id).await,
-        PowerCommand::On { switch_id } => switch::set_power(client, &switch_id, true).await,
-        PowerCommand::Off { switch_id } => switch::set_power(client, &switch_id, false).await,
+        PowerCommand::Toggle { switch_ids } => switch::toggle_power(client, &switch_ids).await,
+        PowerCommand::On { switch_ids } => switch::set_power(client, &switch_ids, true).await,
+        PowerCommand::Off { switch_ids } => switch::set_power(client, &switch_ids, false).await,
     }
 }

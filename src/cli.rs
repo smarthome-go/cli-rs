@@ -35,11 +35,11 @@ pub enum PowerCommand {
     /// Displays power current power draw and a historic summary
     Draw,
     /// Toggles the power state of a switch
-    Toggle { switch_id: String },
+    Toggle { switch_ids: Vec<String> },
     /// Activates a switch
-    On { switch_id: String },
+    On { switch_ids: Vec<String> },
     /// Deactivates a switch
-    Off { switch_id: String },
+    Off { switch_ids: Vec<String> },
 }
 
 #[derive(Subcommand, PartialEq, Eq)]
