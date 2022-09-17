@@ -73,7 +73,7 @@ pub async fn power_draw(client: &Client, config: &PowerConfig) -> Result<()> {
 
     let table = switches
         .into_iter()
-        .map(|switch| TableSwitch::from(switch))
+        .map(TableSwitch::from)
         .table()
         .with(Style::modern().off_horizontal())
         .with(Modify::new(Rows::first()).with(Format::new(|s| format!("\x1b[1;32m{s}\x1b[1;0m"))));
