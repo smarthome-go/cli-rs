@@ -2,6 +2,10 @@
 lint_on_push = true
 use_repl_history = true
 
+[power]
+unit_symbol = '€'
+cost_per_kwh = 0.3
+
 [[servers]]
 id = 'default'
 url = 'http://smarthome.box'

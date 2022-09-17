@@ -32,6 +32,8 @@ pub enum Command {
 
 #[derive(Subcommand, PartialEq, Eq)]
 pub enum PowerCommand {
+    /// Displays power current power draw and a historic summary
+    Draw,
     /// Toggles the power state of a switch
     Toggle { switch_id: String },
     /// Activates a switch

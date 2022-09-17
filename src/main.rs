@@ -99,7 +99,7 @@ async fn main() {
     };
 
     match args.subcommand {
-        Command::Power(sub) => power::handle_subcommand(sub, client)
+        Command::Power(sub) => power::handle_subcommand(sub, &client, &conf)
             .await
             .unwrap_or_else(|err| {
                 error!("{err}");

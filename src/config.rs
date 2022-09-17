@@ -70,8 +70,15 @@ impl Display for ValidateError {
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub homescript: HomescriptConfig,
+    pub power: PowerConfig,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub servers: Vec<SmarthomeServer>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PowerConfig {
+    pub unit_symbol: char,
+    pub cost_per_kwh: f64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -93,6 +100,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             homescript: HomescriptConfig::default(),
+            power: PowerConfig::default(),
             servers: vec![SmarthomeServer::default()],
         }
     }
@@ -103,6 +111,15 @@ impl Default for HomescriptConfig {
         Self {
             lint_on_push: true,
             use_repl_history: true,
+        }
+    }
+}
+
+impl Default for PowerConfig {
+    fn default() -> Self {
+        Self {
+            unit_symbol: '€',
+            cost_per_kwh: 0.3,
         }
     }
 }
