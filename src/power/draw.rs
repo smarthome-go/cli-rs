@@ -85,14 +85,15 @@ pub async fn power_draw(client: &Client, config: &PowerConfig) -> Result<()> {
 
     println!(
         "=== Current Power Draw ===
-  Total   Σ {:>4} W (100 %)
   Active  \x1b[1;32m*\x1b[1;0m {:>4} W ({:>3.0} %)
-  Passive \x1b[1;31m.\x1b[1;0m {:>4} W ({:>3.0} %)",
-        power_total,
+  Passive \x1b[1;31m.\x1b[1;0m {:>4} W ({:>3.0} %)
+  Total   Σ {:>4} W (100 %)
+  ",
         power_active,
         power_active as f64 * 100.0 / power_total as f64,
         power_passive,
-        power_passive as f64 * 100.0 / power_total as f64
+        power_passive as f64 * 100.0 / power_total as f64,
+        power_total,
     );
 
     let historic_data = match client.power_usage(false).await {
