@@ -33,13 +33,29 @@ pub enum Command {
 #[derive(Subcommand, PartialEq, Eq)]
 pub enum PowerCommand {
     /// Displays power current power draw and a historic summary
-    Draw,
+    Draw {
+        #[clap(short, long, value_parser)]
+        /// Hides the table and only shows the most relevant information
+        simple: bool,
+    },
     /// Toggles the power state of a switch
-    Toggle { switch_ids: Vec<String> },
+    Toggle {
+        /// A list of switch-ids to toggle (individually)
+        #[clap(required = true)]
+        switch_ids: Vec<String>,
+    },
     /// Activates a switch
-    On { switch_ids: Vec<String> },
+    On {
+        /// A list of switch-ids to activate
+        #[clap(required = true)]
+        switch_ids: Vec<String>,
+    },
     /// Deactivates a switch
-    Off { switch_ids: Vec<String> },
+    Off {
+        /// A list of switch-id,s to deactivate
+        #[clap(required = true)]
+        switch_ids: Vec<String>,
+    },
 }
 
 #[derive(Subcommand, PartialEq, Eq)]
