@@ -16,7 +16,7 @@ async fn main() {
     env_logger::init();
     let args = Args::parse();
 
-    // Select an appropiate configuration file path
+    // Select an appropriate configuration file path
     let config_path = match args.config_path {
         Some(from_args) => from_args,
         None => config::file_path().unwrap_or_else(|| {

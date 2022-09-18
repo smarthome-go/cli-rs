@@ -44,7 +44,7 @@ pub enum ValidateError {
     // An ID is used more than one time thus defeating the purpose of an ID
     // Holds the value of the duplicate ID
     DuplicateID(String),
-    // The token is not well-formed and is likey bad, holds the token and the ID of the server
+    // The token is not well-formed and is likely bad, holds the token and the ID of the server
     InvalidToken {
         server_id: String,
         token: String,
