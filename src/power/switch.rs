@@ -1,3 +1,4 @@
+use log::{debug, trace};
 use reqwest::StatusCode;
 use smarthome_sdk_rs::{Client, Error as SdkError};
 
@@ -36,18 +37,23 @@ pub async fn set_power_helper(
     switch_id: &str,
     power_on: bool,
 ) -> Result<(), Error> {
+    trace!(
+        "{}ctivating switch `{switch_id}`...",
+        if power_on { "A" } else { "Dea" }
+    );
     match client.set_power(switch_id, power_on).await {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            Err(match err {
-                SdkError::Smarthome(status_code) => match status_code {
-                    StatusCode::UNPROCESSABLE_ENTITY => Error::InvalidSwitch(switch_id.to_string()),
-                    StatusCode::FORBIDDEN => Error::PermissionDenied(switch_id.to_string()),
-                    StatusCode::SERVICE_UNAVAILABLE => Error::ServerError,
-                    _ => Error::Unknown(err),
-                },
+        Ok(_) => Ok(debug!(
+            "Successfully {}ctivated switch `{switch_id}`",
+            if power_on { "a" } else { "dea" }
+        )),
+        Err(err) => Err(match err {
+            SdkError::Smarthome(status_code) => match status_code {
+                StatusCode::UNPROCESSABLE_ENTITY => Error::InvalidSwitch(switch_id.to_string()),
+                StatusCode::FORBIDDEN => Error::PermissionDenied(switch_id.to_string()),
+                StatusCode::SERVICE_UNAVAILABLE => Error::ServerError,
                 _ => Error::Unknown(err),
-            })
-        }
+            },
+            _ => Error::Unknown(err),
+        }),
     }
 }
