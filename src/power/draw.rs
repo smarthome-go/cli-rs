@@ -52,7 +52,11 @@ impl From<PowerSwitch> for TableSwitch {
     }
 }
 
-pub async fn power_draw(client: &Client, config: &PowerConfig) -> Result<()> {
+pub async fn power_draw(
+    client: &Client,
+    config: &PowerConfig,
+    use_simple_display: bool,
+) -> Result<()> {
     let switches = match client.all_switches().await {
         Ok(response) => response,
         Err(err) => return Err(Error::GetSwitches(err)),
@@ -71,30 +75,9 @@ pub async fn power_draw(client: &Client, config: &PowerConfig) -> Result<()> {
         })
         .unzip();
 
-    let table = switches
-        .into_iter()
-        .map(TableSwitch::from)
-        .table()
-        .with(Style::modern().off_horizontal())
-        .with(Modify::new(Rows::first()).with(Format::new(|s| format!("\x1b[1;32m{s}\x1b[1;0m"))));
-    println!("{}", table);
-
     let power_total = all.into_iter().sum::<u32>();
     let power_active = active.into_iter().sum::<u32>();
     let power_passive = power_total - power_active;
-
-    println!(
-        "=== Current Power Draw ===
-  Active  \x1b[1;32m*\x1b[1;0m {:>4} W ({:>3.0} %)
-  Passive \x1b[1;31m.\x1b[1;0m {:>4} W ({:>3.0} %)
-  Total   Σ {:>4} W (100 %)
-  ",
-        power_active,
-        power_active as f64 * 100.0 / power_total as f64,
-        power_passive,
-        power_passive as f64 * 100.0 / power_total as f64,
-        power_total,
-    );
 
     let historic_data = match client.power_usage(false).await {
         Ok(response) => response,
@@ -109,6 +92,32 @@ pub async fn power_draw(client: &Client, config: &PowerConfig) -> Result<()> {
         Some(max) => max.on.watts,
         None => return Err(Error::NotEnoughPowerDrawData),
     };
+
+    // Only print the table if the simple display is turned off
+    if !use_simple_display {
+        let table = switches
+            .into_iter()
+            .map(TableSwitch::from)
+            .table()
+            .with(Style::modern().off_horizontal())
+            .with(
+                Modify::new(Rows::first()).with(Format::new(|s| format!("\x1b[1;32m{s}\x1b[1;0m"))),
+            );
+        println!("{}", table);
+    }
+
+    println!(
+        "=== Current Power Draw ===
+  Active  \x1b[1;32m*\x1b[1;0m {:>4} W ({:>3.0} %)
+  Passive \x1b[1;31m.\x1b[1;0m {:>4} W ({:>3.0} %)
+  Total   Σ {:>4} W (100 %)
+  ",
+        power_active,
+        power_active as f64 * 100.0 / power_total as f64,
+        power_passive,
+        power_passive as f64 * 100.0 / power_total as f64,
+        power_total,
+    );
 
     println!(
         "\n=== 24-Hour Metrics    ===
