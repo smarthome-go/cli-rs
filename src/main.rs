@@ -2,7 +2,8 @@ use std::process;
 
 use clap::Parser;
 use cli::{Args, Command};
-use log::error;
+use log::{error, Level};
+use loggerv::Logger;
 use reqwest::StatusCode;
 use smarthome_sdk_rs::{Auth, Client, User};
 
@@ -13,8 +14,20 @@ mod power;
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
     let args = Args::parse();
+    // Intialize logger
+    Logger::new()
+        .max_level(if args.verbose {
+            Level::Debug
+        } else {
+            Level::Info
+        })
+        .colors(true)
+        .level(true)
+        .module_path_filters(vec![env!("CARGO_PKG_NAME").replace("-", "_")])
+        .module_path(false)
+        .init()
+        .unwrap();
 
     // Select an appropriate configuration file path
     let config_path = match args.config_path {
@@ -105,7 +118,7 @@ async fn main() {
                 error!("{err}");
                 process::exit(1);
             }),
-        Command::Hms(sub) => hms::handle_subcommand(sub, client)
+        Command::Hms(sub) => hms::handle_subcommand(sub, &client)
             .await
             .unwrap_or_else(|err| {
                 error!("{err}");

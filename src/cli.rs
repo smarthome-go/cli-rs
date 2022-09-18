@@ -11,6 +11,10 @@ pub struct Args {
     #[clap(short, long, value_parser)]
     pub config_path: Option<String>,
 
+    /// If set, more information will be printed to the console
+    #[clap(short, long, value_parser)]
+    pub verbose: bool,
+
     /// Smarthome subcommands
     #[clap(subcommand)]
     pub subcommand: Command,
@@ -83,7 +87,10 @@ pub enum HmsScriptCommand {
     /// Clone an existing script from the server to the local FS
     Clone,
     /// Delete a script from the local FS and the server
-    Del,
+    Del {
+        /// The ID of the script to be deleted
+        id: String,
+    },
     /// Push local changes to the server
     Push,
     /// Pull any upstream changes to local FS

@@ -9,7 +9,6 @@ edition = "2021"
 clap = { version = "3.2.17", features = ["derive"] }
 rustyline = "10.0.0"
 rustyline-derive = "0.7.0"
-env_logger = "0.9.0"
 tokio = { version = "1.21.1", features = ["full"] }
 serde = "1.0.144"
 toml = "0.5.9"
@@ -17,3 +16,4 @@ log = "0.4.17"
 reqwest = { version = "0.11.11", default-features = false }
 smarthome-sdk-rs = {path = '../sdk-rs/'}
 tabled = { version = "0.8.0", features = ["color", "derive"] }
+loggerv = "0.7.2"
