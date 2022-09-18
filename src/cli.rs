@@ -12,7 +12,7 @@ pub struct Args {
     pub config_path: Option<String>,
 
     /// If set, more information will be printed to the console
-    #[clap(short, long, value_parser)]
+    #[clap(short, long, value_parser, global=true)]
     pub verbose: bool,
 
     /// Smarthome subcommands
