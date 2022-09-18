@@ -18,7 +18,7 @@ async fn main() {
     // Intialize logger
     Logger::new()
         .max_level(if args.verbose {
-            Level::Debug
+            Level::Trace
         } else {
             Level::Info
         })
