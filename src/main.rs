@@ -24,7 +24,7 @@ async fn main() {
         })
         .colors(true)
         .level(true)
-        .module_path_filters(vec![env!("CARGO_PKG_NAME").replace("-", "_")])
+        .module_path_filters(vec![env!("CARGO_PKG_NAME").replace('-', "_")])
         .module_path(false)
         .init()
         .unwrap();

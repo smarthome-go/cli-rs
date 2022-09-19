@@ -1,10 +1,8 @@
-use smarthome_sdk_rs::{Client, PowerDrawPoint, PowerSwitch};
-
-use crate::config::PowerConfig;
-
 use super::errors::{Error, Result};
-
+use crate::config::PowerConfig;
+use smarthome_sdk_rs::{Client, PowerDrawPoint, PowerSwitch};
 use tabled::{object::Rows, Format, Modify, Style, TableIteratorExt, Tabled};
+
 #[derive(Tabled)]
 struct TableSwitch {
     #[tabled(display_with("Self::display_id", args), rename = "ID")]

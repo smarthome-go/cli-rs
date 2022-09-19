@@ -1,3 +1,5 @@
+use std::{fs, path::Path};
+
 use super::errors::{Error, Result};
 use log::{debug, info};
 use reqwest::StatusCode;
@@ -8,6 +10,13 @@ pub async fn delete_script(client: &Client, id: &str) -> Result<()> {
     match client.delete_homescript(id).await {
         Ok(_) => {
             info!("Successfully deleted script `{id}`");
+
+            let path = format!("./{id}");
+            let path = Path::new(path.as_str());
+
+            if path.exists() {
+                fs::remove_dir_all(path)?;
+            }
             Ok(())
         }
         Err(err) => Err(match err {

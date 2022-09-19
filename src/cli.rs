@@ -12,7 +12,7 @@ pub struct Args {
     pub config_path: Option<String>,
 
     /// If set, more information will be printed to the console
-    #[clap(short, long, value_parser, global=true)]
+    #[clap(short, long, value_parser, global = true)]
     pub verbose: bool,
 
     /// Smarthome subcommands
@@ -73,6 +73,8 @@ pub enum HmsCommand {
 
 #[derive(Subcommand, PartialEq, Eq)]
 pub enum HmsScriptCommand {
+    /// Displays a list of personal Homescripts
+    Ls,
     /// Create a new Homescript locally and on the remote
     New {
         /// A unique ID for the new script
