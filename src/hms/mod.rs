@@ -26,8 +26,16 @@ pub async fn handle_subcommand(command: HmsCommand, client: &Client) -> Result<(
                 )
                 .await?
             }
-            HmsScriptCommand::Del { id } => crud::delete_script(client, &id).await?,
-            HmsScriptCommand::Clone => println!("Clone"),
+            HmsScriptCommand::Del { ids } => {
+                for id in &ids {
+                    crud::delete_script(client, id).await?
+                }
+            }
+            HmsScriptCommand::Clone {ids} => {
+                for id in &ids {
+                    println!("Cloning `{id}`...")
+                }
+            }
             HmsScriptCommand::Push => println!("Push"),
             HmsScriptCommand::Pull => println!("Pull"),
         },

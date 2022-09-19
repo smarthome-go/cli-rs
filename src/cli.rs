@@ -87,11 +87,16 @@ pub enum HmsScriptCommand {
         workspace: Option<String>,
     },
     /// Clone an existing script from the server to the local FS
-    Clone,
+    Clone {
+        /// The ID(s) of the script(s) to be cloned
+        #[clap(required = true)]
+        ids: Vec<String>,
+    },
     /// Delete a script from the local FS and the server
     Del {
-        /// The ID of the script to be deleted
-        id: String,
+        /// The ID(s) of the script(s) to be deleted
+        #[clap(required = true)]
+        ids: Vec<String>,
     },
     /// Push local changes to the server
     Push,
