@@ -118,7 +118,7 @@ async fn main() {
                 error!("{err}");
                 process::exit(1);
             }),
-        Command::Hms(sub) => hms::handle_subcommand(sub, &client)
+        Command::Hms(sub) => hms::handle_subcommand(sub, &client, &conf)
             .await
             .unwrap_or_else(|err| {
                 error!("{err}");

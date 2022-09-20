@@ -1,7 +1,10 @@
 use smarthome_sdk_rs::Client;
 
 use self::errors::Result;
-use crate::cli::{HmsCommand, HmsScriptCommand};
+use crate::{
+    cli::{HmsCommand, HmsScriptCommand},
+    config::Config,
+};
 
 mod crud;
 mod errors;
@@ -9,7 +12,11 @@ mod listing;
 mod repl;
 mod workspace;
 
-pub async fn handle_subcommand(command: HmsCommand, client: &Client) -> Result<()> {
+pub async fn handle_subcommand(
+    command: HmsCommand,
+    client: &Client,
+    config: &Config,
+) -> Result<()> {
     match command {
         HmsCommand::Repl => repl::start(client).await?,
         HmsCommand::Script(sub) => match sub {
@@ -28,17 +35,15 @@ pub async fn handle_subcommand(command: HmsCommand, client: &Client) -> Result<(
                 .await?
             }
             HmsScriptCommand::Del { ids } => {
-                for id in &ids {
-                    crud::delete_script(client, id).await?
+                for script_id in &ids {
+                    crud::delete_script(client, script_id).await?
                 }
             }
-            HmsScriptCommand::Clone { ids } => {
-                for id in &ids {
-                    println!("Cloning `{id}`...")
-                }
+            HmsScriptCommand::Clone { ids } => workspace::clone(&ids, client).await?,
+            HmsScriptCommand::Push => {
+                workspace::push(client, config.homescript.lint_on_push).await?
             }
-            HmsScriptCommand::Push => workspace::push(client).await?,
-            HmsScriptCommand::Pull => println!("Pull"),
+            HmsScriptCommand::Pull => workspace::pull(client).await?,
         },
     }
     Ok(())

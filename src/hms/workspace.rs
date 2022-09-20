@@ -1,9 +1,13 @@
-use std::{fs, path::Path};
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::Path,
+};
 
 use log::{debug, info};
-use smarthome_sdk_rs::{Client, HomescriptData};
+use smarthome_sdk_rs::{Client, Homescript, HomescriptData};
 
-use super::errors::WsError;
+use super::errors::{Error, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -11,22 +15,70 @@ pub struct HomescriptMetadata {
     pub id: String,
 }
 
-pub async fn push(client: &Client, lint_hook: bool) -> Result<(), WsError> {
+pub async fn pull(client: &Client) -> Result<()> {
+    // Check if the Homescript manifest exists
     let manifest_path = Path::new(".hms.toml");
     if !manifest_path.exists() {
-        return Err(WsError::NotAWorkspace);
+        return Err(Error::NotAWorkspace);
     }
     let manifest: HomescriptMetadata = toml::from_str(&fs::read_to_string(&manifest_path)?)?;
-
-    let script_path = format!("{}.hms", manifest.id);
-    let script_path = Path::new(&script_path);
-    if !script_path.exists() {
-        return Err(WsError::NotAWorkspace);
+    // Check if the required Homescript file exists
+    let homescript_path = format!("{}.hms", manifest.id);
+    let homescript_path = Path::new(&homescript_path);
+    if !homescript_path.exists() {
+        return Err(Error::NotAWorkspace);
     }
-    let homescript_code = fs::read_to_string(script_path)?;
+    // Read the old code
+    let old_homescript_code = fs::read_to_string(homescript_path)?;
+    debug!("Found valid Homescript workspace. Pulling...");
+    debug!("Testing Homescript ID validity...");
+    // Download the current data
+    let data = match client
+        .list_personal_homescripts()
+        .await?
+        .into_iter()
+        .find(|script| script.data.id == manifest.id)
+    {
+        Some(this_script) => this_script.data,
+        None => return Err(Error::InvalidHomescript(manifest.id)),
+    };
+    // Check if there are changes
+    if data.code == old_homescript_code {
+        info!("Already up to date.");
+        return Ok(());
+    }
+    // Write the changes to disk
+    fs::write(homescript_path, data.code)?;
+    info!(
+        "Successfully pulled changes of `{}` from {}",
+        manifest.id,
+        client
+            .smarthome_url
+            .host()
+            .expect("Client can only exist with valid URL")
+    );
+    Ok(())
+}
+
+pub async fn push(client: &Client, lint_hook: bool) -> Result<()> {
+    // Check if the manifest exists
+    let manifest_path = Path::new(".hms.toml");
+    if !manifest_path.exists() {
+        return Err(Error::NotAWorkspace);
+    }
+    // Read & parse the manifest
+    let manifest: HomescriptMetadata = toml::from_str(&fs::read_to_string(&manifest_path)?)?;
+    // Check if the Homescript file exists
+    let homescript_path = format!("{}.hms", manifest.id);
+    let homescript_path = Path::new(&homescript_path);
+    if !homescript_path.exists() {
+        return Err(Error::NotAWorkspace);
+    }
+    // Read the current code
+    let homescript_code = fs::read_to_string(homescript_path)?;
     debug!("Found valid Homescript workspace. Pushing...");
     debug!("Testing Homescript ID validity...");
-
+    // Get the upstream state of the script
     let old_data = match client
         .list_personal_homescripts()
         .await?
@@ -34,21 +86,33 @@ pub async fn push(client: &Client, lint_hook: bool) -> Result<(), WsError> {
         .find(|script| script.data.id == manifest.id)
     {
         Some(this_script) => this_script.data,
-        None => return Err(WsError::InvalidHomescript(manifest.id)),
+        None => return Err(Error::InvalidHomescript(manifest.id)),
     };
-
+    // Check if there are changes
+    if old_data.code == homescript_code {
+        info!("Already up to date.");
+        return Ok(());
+    }
     // Running the pre-push lint hook if required
     if lint_hook {
-         w q
+        match client
+            .exec_homescript_code(&homescript_code, vec![], true)
+            .await
+        {
+            Ok(response) => match response.success {
+                true => debug!("Linting discovered no problems"),
+                false => return Err(Error::LintErrors(response.errors)),
+            },
+            Err(err) => return Err(Error::Smarthome(err)),
+        }
     }
-
+    // Push the changes
     client
         .modify_homescript(&HomescriptData {
             code: homescript_code,
             ..old_data
         })
         .await?;
-
     info!(
         "Successfully pushed script `{}` to {}",
         manifest.id,
@@ -57,5 +121,50 @@ pub async fn push(client: &Client, lint_hook: bool) -> Result<(), WsError> {
             .host()
             .expect("Client can only exist with valid URL")
     );
+    Ok(())
+}
+
+pub async fn clone(script_ids: &Vec<String>, client: &Client) -> Result<()> {
+    // Fetch the personal scripts
+    let personal_scripts: Vec<Homescript> = client
+        .list_personal_homescripts()
+        .await?
+        .into_iter()
+        .filter(|script| script_ids.contains(&script.data.id))
+        .collect();
+    // Iterate over the ids which should be cloned
+    for script_id in script_ids {
+        // Select the script from the fetched scripts
+        let script_to_clone = match personal_scripts
+            .iter()
+            .find(|item| item.data.id == *script_id)
+        {
+            Some(script) => script,
+            None => return Err(Error::ScriptDoesNotExist(script_id.to_string())),
+        };
+        // Clone the current iteration script
+        clone_to_fs(&script_to_clone.data)?
+    }
+    Ok(())
+}
+
+pub fn clone_to_fs(script_data: &HomescriptData) -> Result<()> {
+    debug!("Cloning script `{}`...", script_data.id);
+    let path = format!("{}", script_data.id);
+    let path = Path::new(&path);
+
+    if path.exists() {
+        return Err(Error::CloneDirAlreadyExists(script_data.id.to_string()));
+    }
+
+    fs::create_dir_all(&path)?;
+    let mut homescript_file = File::create(path.join(format!("{}.hms", script_data.id)))?;
+    homescript_file.write_all(script_data.code.as_bytes())?;
+
+    let mut metadate_file = File::create(path.join(".hms.toml"))?;
+    metadate_file.write_all(&toml::to_vec(&HomescriptMetadata {
+        id: script_data.id.clone(),
+    })?)?;
+    info!("Successfully cloned script `{}`", script_data.id);
     Ok(())
 }
