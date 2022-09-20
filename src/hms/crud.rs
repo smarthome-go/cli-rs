@@ -4,18 +4,13 @@ use std::{
     path::Path,
 };
 
-use crate::hms::errors::CreateError;
+use crate::hms::{errors::CreateError, workspace::HomescriptMetadata};
 
 use super::errors::DeleteError;
 use log::{debug, info};
 use reqwest::StatusCode;
-use serde::{Deserialize, Serialize};
 use smarthome_sdk_rs::{Client, Error as SdkError, HomescriptData};
 
-#[derive(Serialize, Deserialize)]
-struct HomescriptMetadata {
-    id: String,
-}
 
 pub async fn create_script(
     client: &Client,

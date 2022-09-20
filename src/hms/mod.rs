@@ -7,6 +7,7 @@ mod crud;
 mod errors;
 mod listing;
 mod repl;
+mod workspace;
 
 pub async fn handle_subcommand(command: HmsCommand, client: &Client) -> Result<()> {
     match command {
@@ -31,12 +32,12 @@ pub async fn handle_subcommand(command: HmsCommand, client: &Client) -> Result<(
                     crud::delete_script(client, id).await?
                 }
             }
-            HmsScriptCommand::Clone {ids} => {
+            HmsScriptCommand::Clone { ids } => {
                 for id in &ids {
                     println!("Cloning `{id}`...")
                 }
             }
-            HmsScriptCommand::Push => println!("Push"),
+            HmsScriptCommand::Push => workspace::push(client).await?,
             HmsScriptCommand::Pull => println!("Pull"),
         },
     }
