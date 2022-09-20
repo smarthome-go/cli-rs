@@ -89,8 +89,11 @@ pub enum HmsScriptCommand {
     /// Clone an existing script from the server to the local FS
     Clone {
         /// The ID(s) of the script(s) to be cloned
-        #[clap(required = true)]
+        #[clap(required = true, conflicts_with = "all")]
         ids: Vec<String>,
+
+        #[clap(short, long, value_parser)]
+        all: bool,
     },
     /// Delete a script from the local FS and the server
     Del {
@@ -102,4 +105,8 @@ pub enum HmsScriptCommand {
     Push,
     /// Pull any upstream changes to local FS
     Pull,
+    /// Runs the Homescript code of a local script
+    Run,
+    /// Lints the Homescript code of a local script
+    Lint,
 }

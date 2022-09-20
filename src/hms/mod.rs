@@ -20,6 +20,8 @@ pub async fn handle_subcommand(
     match command {
         HmsCommand::Repl => repl::start(client).await?,
         HmsCommand::Script(sub) => match sub {
+            HmsScriptCommand::Run => workspace::exec_current_script(client, false).await?,
+            HmsScriptCommand::Lint => workspace::exec_current_script(client, true).await?,
             HmsScriptCommand::Ls => listing::list_personal(client).await?,
             HmsScriptCommand::New {
                 id,
@@ -39,7 +41,7 @@ pub async fn handle_subcommand(
                     crud::delete_script(client, script_id).await?
                 }
             }
-            HmsScriptCommand::Clone { ids } => workspace::clone(&ids, client).await?,
+            HmsScriptCommand::Clone { ids, all } => workspace::clone(&ids, all, client).await?,
             HmsScriptCommand::Push => {
                 workspace::push(client, config.homescript.lint_on_push).await?
             }

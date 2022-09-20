@@ -1,7 +1,4 @@
-use std::{
-    fmt::{format, Display},
-    io,
-};
+use std::{fmt::Display, io};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -19,6 +16,7 @@ pub enum Error {
     NotAWorkspace,
     InvalidWorkspace,
     LintErrors(Vec<HomescriptExecError>),
+    RunErrors(Vec<HomescriptExecError>),
     InvalidHomescript(String),
     DecodeManifest(toml::de::Error),
     CloneDirAlreadyExists(String),
@@ -81,6 +79,7 @@ impl Display for Error {
                         format!("Not a valid Homescript directory: (missing files?)"),
                         Self::InvalidHomescript(id) => format!("Cannot perform action on script `{id}`: script does not exist or is inaccessible"),
                         Self::LintErrors(errors) => format!("Linting discovered problems:\n{}", errors.iter().map(|error|error.to_string()).collect::<Vec<String>>().join("\n")),
+                        Self::RunErrors(errors) => format!("Homescript terminated with errors:\n{}", errors.iter().map(|error|error.to_string()).collect::<Vec<String>>().join("\n")),
                         Self::Smarthome(err) => format!("Smarthome Error: {err}"),
                         Self::CloneDirAlreadyExists(path) => format!("Cannot clone: directory at `./{path}` already exists."),
                 Self::Rustyline(err) => format!("REPL error: {err}"),

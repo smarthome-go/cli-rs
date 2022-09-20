@@ -60,6 +60,52 @@ pub async fn pull(client: &Client) -> Result<()> {
     Ok(())
 }
 
+pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
+    // Check if the manifest exists
+    let manifest_path = Path::new(".hms.toml");
+    if !manifest_path.exists() {
+        return Err(Error::NotAWorkspace);
+    }
+    // Read & parse the manifest
+    let manifest: HomescriptMetadata = toml::from_str(&fs::read_to_string(&manifest_path)?)?;
+    // Check if the Homescript file exists
+    let homescript_path = format!("{}.hms", manifest.id);
+    let homescript_path = Path::new(&homescript_path);
+    if !homescript_path.exists() {
+        return Err(Error::NotAWorkspace);
+    }
+    // Reads the current code
+    let homescript_code = fs::read_to_string(homescript_path)?;
+    debug!("Found Homescript workspace. Executing...");
+    let response = client
+        .exec_homescript_code(&homescript_code, vec![], lint)
+        .await?;
+
+    match response.success {
+        true => println!(
+            "{}{}",
+            if lint {
+                "linting discovered no problems.".to_string()
+            } else {
+                format!("program completed with exit-code {}.", response.exit_code)
+            },
+            if !response.output.is_empty() {
+                format!("\n{}", response.output.trim_end())
+            } else {
+                "".to_string()
+            }
+        ),
+        false => {
+            return Err(if lint {
+                Error::LintErrors(response.errors)
+            } else {
+                Error::RunErrors(response.errors)
+            })
+        }
+    }
+    Ok(())
+}
+
 pub async fn push(client: &Client, lint_hook: bool) -> Result<()> {
     // Check if the manifest exists
     let manifest_path = Path::new(".hms.toml");
@@ -124,7 +170,7 @@ pub async fn push(client: &Client, lint_hook: bool) -> Result<()> {
     Ok(())
 }
 
-pub async fn clone(script_ids: &Vec<String>, client: &Client) -> Result<()> {
+pub async fn clone(script_ids: &Vec<String>, clone_all: bool, client: &Client) -> Result<()> {
     // Fetch the personal scripts
     let personal_scripts: Vec<Homescript> = client
         .list_personal_homescripts()
@@ -132,6 +178,16 @@ pub async fn clone(script_ids: &Vec<String>, client: &Client) -> Result<()> {
         .into_iter()
         .filter(|script| script_ids.contains(&script.data.id))
         .collect();
+
+    // Clone all scripts if required
+    if clone_all {
+        for script in &personal_scripts {
+            // Clone the current iteration script
+            clone_to_fs(&script.data)?
+        }
+        return Ok(());
+    }
+
     // Iterate over the ids which should be cloned
     for script_id in script_ids {
         // Select the script from the fetched scripts
