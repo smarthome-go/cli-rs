@@ -4,7 +4,7 @@ use smarthome_sdk_rs::{Client, PowerDrawPoint, PowerSwitch};
 use tabled::{object::Rows, Format, Modify, Style, TableIteratorExt, Tabled};
 
 #[derive(Tabled)]
-struct TableSwitch {
+pub struct TableSwitch {
     #[tabled(display_with("Self::display_id", args), rename = "ID")]
     id: String,
     #[tabled(rename = "Name")]

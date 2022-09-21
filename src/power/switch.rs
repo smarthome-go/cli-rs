@@ -1,6 +1,9 @@
 use log::{debug, trace};
 use reqwest::StatusCode;
 use smarthome_sdk_rs::{Client, Error as SdkError};
+use tabled::{object::Rows, Format, Modify, Style, TableIteratorExt};
+
+use crate::power::draw::TableSwitch;
 
 use super::errors::Error;
 
@@ -59,4 +62,23 @@ pub async fn set_power_helper(
             _ => Error::Unknown(err),
         }),
     }
+}
+
+pub async fn switch_list(client: &Client, show_all: bool) -> Result<(), Error> {
+    let switches = match if show_all {
+        client.all_switches().await
+    } else {
+        client.personal_switches().await
+    } {
+        Ok(response) => response,
+        Err(err) => return Err(Error::GetSwitches(err)),
+    };
+    let table = switches
+        .into_iter()
+        .map(TableSwitch::from)
+        .table()
+        .with(Style::modern().off_horizontal())
+        .with(Modify::new(Rows::first()).with(Format::new(|s| format!("\x1b[1;32m{s}\x1b[1;0m"))));
+    println!("{}", table);
+    Ok(())
 }
