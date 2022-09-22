@@ -2,13 +2,15 @@ use std::process;
 
 use clap::Parser;
 use cli::{Args, Command};
-use log::{error, Level};
+use debug::debug;
+use log::{error, Level, info};
 use loggerv::Logger;
 use reqwest::StatusCode;
 use smarthome_sdk_rs::{Auth, Client, User};
 
 mod cli;
 mod config;
+mod debug;
 mod hms;
 mod power;
 
@@ -39,7 +41,7 @@ async fn main() {
     };
 
     if args.subcommand == Command::Config {
-        println!("Configuration file is located at `{config_path}`");
+        info!("Configuration file is located at `{config_path}`");
         process::exit(0);
     }
 
@@ -48,7 +50,7 @@ async fn main() {
         Ok(conf) => match conf {
             Some(conf) => conf,
             None => {
-                println!("Created a new configuration file (at `{config_path}`).\nHINT: To get started, edit this file to set up your server(s) and run this program again.");
+                info!("Created a new configuration file (at `{config_path}`).\nHINT: To get started, edit this file to set up your server(s) and run this program again.");
                 process::exit(0);
             }
         },
@@ -92,7 +94,7 @@ async fn main() {
     {
         Ok(client) => client,
         Err(err) => {
-            eprintln!(
+            error!(
                 "Could not connect to Smarthome: {}",
                 match err {
                     smarthome_sdk_rs::Error::UrlParse(err) =>
@@ -124,6 +126,10 @@ async fn main() {
                 error!("{err}");
                 process::exit(1);
             }),
+        Command::Debug => debug(&client).await.unwrap_or_else(|err| {
+            error!("{err}");
+            process::exit(1);
+        }),
         Command::Config => unreachable!("Config should have been covered before"),
     };
 }

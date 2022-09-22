@@ -30,6 +30,9 @@ pub enum Command {
     #[clap(subcommand)]
     Hms(HmsCommand),
 
+    /// Displays debug information
+    Debug,
+
     /// Displays the file path of the CLI's configuration file
     Config,
 }
