@@ -17,7 +17,7 @@ mod power;
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
-    // Intialize logger
+    // Initialize logger
     Logger::new()
         .max_level(if args.verbose {
             Level::Trace
