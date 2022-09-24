@@ -14,6 +14,6 @@ serde = "1.0.144"
 toml = "0.5.9"
 log = "0.4.17"
 reqwest = { version = "0.11.11", default-features = false }
-smarthome-sdk-rs = {path = '../sdk-rs/'}
 tabled = { version = "0.8.0", features = ["color", "derive"] }
 loggerv = "0.7.2"
+smarthome-sdk-rs = "0.6.0"
