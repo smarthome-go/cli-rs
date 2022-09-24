@@ -17,7 +17,7 @@ pub async fn create_script(
     name: String,
     workspace: String,
 ) -> Result<()> {
-    let path = format!("{id}");
+    let path = id.to_string();
     let path = Path::new(&path);
 
     if path.exists() {

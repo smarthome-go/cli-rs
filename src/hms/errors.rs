@@ -14,7 +14,6 @@ pub enum Error {
     InvalidData(String),
     TomlEncode(toml::ser::Error),
     NotAWorkspace,
-    InvalidWorkspace,
     LintErrors(Vec<HomescriptExecError>),
     RunErrors(Vec<HomescriptExecError>),
     InvalidHomescript(String),
@@ -70,13 +69,9 @@ impl Display for Error {
                             format!("Script `{id}` does not exist or is inaccessible"),
                         Self::ScriptHasDependentAutomations(id) =>
                             format!("Automations depend on script `{id}`"),
-                        Self::IO(err) =>
-                            format!("Could not perform IO operation: {err}"),
-                        Self::InvalidWorkspace => format!("Corrupt Homescript workspace: some files are broken:\n => Clone this script again"),
                         Self::DecodeManifest(err) => format!("Invalid Homescript manifest (at `.hms.toml`):\n{err}\n => Clone this script again"),
-                        Self::IO(err) => format!("Could not read or write from / to workspace: {err}"),
                         Self::NotAWorkspace =>
-                        format!("Not a valid Homescript directory: (missing files?)"),
+                        "Not a valid Homescript directory: (missing files?)".to_string(),
                         Self::InvalidHomescript(id) => format!("Cannot perform action on script `{id}`: script does not exist or is inaccessible"),
                         Self::LintErrors(errors) => format!("Linting discovered problems:\n{}", errors.iter().map(|error|error.to_string()).collect::<Vec<String>>().join("\n")),
                         Self::RunErrors(errors) => format!("Homescript terminated with errors:\n{}", errors.iter().map(|error|error.to_string()).collect::<Vec<String>>().join("\n")),

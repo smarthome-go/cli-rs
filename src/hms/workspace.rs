@@ -206,7 +206,7 @@ pub async fn clone(script_ids: &Vec<String>, clone_all: bool, client: &Client) -
 
 pub fn clone_to_fs(script_data: &HomescriptData) -> Result<()> {
     debug!("Cloning script `{}`...", script_data.id);
-    let path = format!("{}", script_data.id);
+    let path = script_data.id.to_string();
     let path = Path::new(&path);
 
     if path.exists() {
