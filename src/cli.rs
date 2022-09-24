@@ -30,12 +30,21 @@ pub enum Command {
     #[clap(subcommand)]
     Hms(HmsCommand),
 
+    /// Displays debug information
+    Debug,
+
     /// Displays the file path of the CLI's configuration file
     Config,
 }
 
 #[derive(Subcommand, PartialEq, Eq)]
 pub enum PowerCommand {
+    /// Shows the user's personal switches
+    Switches {
+        #[clap(short, long, value_parser)]
+        /// Shows all switches which are present on the Smarthome-server
+        all: bool,
+    },
     /// Displays power current power draw and a historic summary
     Draw {
         #[clap(short, long, value_parser)]
