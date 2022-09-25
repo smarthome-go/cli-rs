@@ -3,7 +3,7 @@ use std::process;
 use clap::Parser;
 use cli::{Args, Command};
 use debug::debug;
-use log::{error, Level, info};
+use log::{error, info, Level};
 use loggerv::Logger;
 use reqwest::StatusCode;
 use smarthome_sdk_rs::{Auth, Client, User};
