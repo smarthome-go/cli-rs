@@ -103,9 +103,9 @@ pub async fn start(client: &Client) -> rustyline::Result<()> {
                                     .map(|err| {
                                         format!(
                                             "{} (l. {}| c. {}): {}",
-                                            err.error_type,
-                                            err.location.line,
-                                            err.location.column,
+                                            err.kind,
+                                            err.span.start.line,
+                                            err.span.start.column,
                                             err.message
                                         )
                                     })

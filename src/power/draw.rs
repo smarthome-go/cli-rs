@@ -1,7 +1,7 @@
 use super::errors::{Error, Result};
 use crate::config::PowerConfig;
 use smarthome_sdk_rs::{Client, PowerDrawPoint, PowerSwitch};
-use tabled::{object::Rows, Format, Modify, Style, TableIteratorExt, Tabled};
+use tabled::{format::Format, object::Rows, Modify, Style, TableIteratorExt, Tabled};
 
 #[derive(Tabled)]
 pub struct TableSwitch {
@@ -93,14 +93,10 @@ pub async fn power_draw(
 
     // Only print the table if the simple display is turned off
     if !use_simple_display {
-        let table = switches
-            .into_iter()
-            .map(TableSwitch::from)
-            .table()
-            .with(Style::modern().off_horizontal())
-            .with(
-                Modify::new(Rows::first()).with(Format::new(|s| format!("\x1b[1;32m{s}\x1b[1;0m"))),
-            );
+        let mut table = switches.into_iter().map(TableSwitch::from).table();
+        let table = table.with(Style::modern().off_horizontal()).with(
+            Modify::new(Rows::first()).with(Format::new(|s| format!("\x1b[1;32m{s}\x1b[1;0m"))),
+        );
         println!("{}", table);
     }
 

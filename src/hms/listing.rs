@@ -1,5 +1,5 @@
 use smarthome_sdk_rs::{Client, Homescript};
-use tabled::{object::Rows, Format, Modify, Style, TableIteratorExt, Tabled};
+use tabled::{format::Format, object::Rows, Modify, Style, TableIteratorExt, Tabled};
 
 use crate::hms::errors::{Error, Result};
 
@@ -62,10 +62,12 @@ pub async fn list_personal(client: &Client) -> Result<()> {
         Ok(response) => response.into_iter().map(TableHomescriptData::from),
         Err(err) => return Err(Error::FetchHomescript(err)),
     };
-    let table = homescripts
-        .table()
-        .with(Style::modern().off_horizontal())
-        .with(Modify::new(Rows::first()).with(Format::new(|s| format!("\x1b[1;32m{s}\x1b[1;0m"))));
-    println!("{}", table);
+    let mut table = homescripts.table();
+    println!(
+        "{}",
+        table.with(Style::modern().off_horizontal()).with(
+            Modify::new(Rows::first()).with(Format::new(|s| format!("\x1b[1;32m{s}\x1b[1;0m")))
+        )
+    );
     Ok(())
 }
