@@ -94,6 +94,18 @@ pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
             if !lint && !response.output.is_empty() {
                 println!("{}", response.output.trim_end())
             }
+            if lint {
+                println!(
+                    "{}",
+                    response
+                        .errors
+                        .iter()
+                        .map(|diagnostic| diagnostic
+                            .display(&homescript_code, &format!("{}.hms", manifest.id)))
+                        .collect::<Vec<String>>()
+                        .join("\n\n")
+                )
+            }
         }
         false => {
             return Err(if lint {
@@ -103,7 +115,11 @@ pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
                     filename: format!("{}.hms", manifest.id),
                 }
             } else {
-                Error::RunErrors(response.errors)
+                Error::RunErrors {
+                    errors: response.errors,
+                    code: homescript_code,
+                    filename: format!("{}.hms", manifest.id),
+                }
             })
         }
     }
