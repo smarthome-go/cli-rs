@@ -1,3 +1,5 @@
+use std::{vec};
+
 use smarthome_sdk_rs::{Client, Homescript};
 use tabled::{format::Format, object::Rows, Modify, Style, TableIteratorExt, Tabled};
 
@@ -69,5 +71,33 @@ pub async fn list_personal(client: &Client) -> Result<()> {
             Modify::new(Rows::first()).with(Format::new(|s| format!("\x1b[1;32m{s}\x1b[1;0m")))
         )
     );
+    Ok(())
+}
+
+pub async fn lint_personal(client: &Client) -> Result<()> {
+    let homescripts = client.list_personal_homescripts().await?;
+    for script in homescripts {
+        let res = client
+            .exec_homescript(&script.data.id, vec![], true)
+            .await?;
+        println!(
+            "\x1b[1;32m=== {} / {} === \x1b[0m \n{}",
+            script.data.id,
+            script.data.name,
+            res.errors
+                .iter()
+                .map(|diagnostic| diagnostic.display(&script.data.code, &script.data.id))
+                .collect::<Vec<String>>()
+                .join("\n\n"),
+        );
+        if res
+            .errors
+            .iter()
+            .find(|diagnostic| diagnostic.kind != "Warning" && diagnostic.kind != "Info")
+            .is_some()
+        {
+            break;
+        }
+    }
     Ok(())
 }

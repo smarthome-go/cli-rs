@@ -21,7 +21,10 @@ pub async fn handle_subcommand(
         HmsCommand::Repl => repl::start(client).await?,
         HmsCommand::Script(sub) => match sub {
             HmsScriptCommand::Run => workspace::exec_current_script(client, false).await?,
-            HmsScriptCommand::Lint => workspace::exec_current_script(client, true).await?,
+            HmsScriptCommand::Lint { all } => match all {
+                true => listing::lint_personal(client).await?,
+                false => workspace::exec_current_script(client, true).await?,
+            },
             HmsScriptCommand::Ls => listing::list_personal(client).await?,
             HmsScriptCommand::New {
                 id,

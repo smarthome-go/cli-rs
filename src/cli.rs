@@ -117,5 +117,8 @@ pub enum HmsScriptCommand {
     /// Runs the Homescript code of a local script
     Run,
     /// Lints the Homescript code of a local script
-    Lint,
+    Lint {
+        #[clap(short, long, value_parser)]
+        all: bool,
+    },
 }
