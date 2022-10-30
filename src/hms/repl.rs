@@ -100,15 +100,7 @@ pub async fn start(client: &Client) -> rustyline::Result<()> {
                                 "{}",
                                 res.errors
                                     .iter()
-                                    .map(|err| {
-                                        format!(
-                                            "{} (l. {}| c. {}): {}",
-                                            err.kind,
-                                            err.span.start.line,
-                                            err.span.start.column,
-                                            err.message
-                                        )
-                                    })
+                                    .map(|err| { err.display(&line, "repl") })
                                     .collect::<Vec<String>>()
                                     .join("\n")
                             ),
