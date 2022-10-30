@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use log::{debug, info};
+use log::{debug, info, warn};
 use smarthome_sdk_rs::{Client, Homescript, HomescriptData};
 
 use super::errors::{Error, Result};
@@ -126,7 +126,7 @@ pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
     Ok(())
 }
 
-pub async fn push(client: &Client, lint_hook: bool) -> Result<()> {
+pub async fn push(client: &Client, lint_hook: bool, force: bool) -> Result<()> {
     // Check if the manifest exists
     let manifest_path = Path::new(".hms.toml");
     if !manifest_path.exists() {
@@ -167,13 +167,14 @@ pub async fn push(client: &Client, lint_hook: bool) -> Result<()> {
         {
             Ok(response) => match response.success {
                 true => debug!("Linting discovered no problems"),
-                false => {
+                false if !force => {
                     return Err(Error::LintErrors {
                         errors: response.errors,
                         code: homescript_code,
                         filename: format!("{}.hms", manifest.id),
                     })
                 }
+                false => warn!("Linting discovered errors: force-pushing to remote")
             },
             Err(err) => return Err(Error::Smarthome(err)),
         }

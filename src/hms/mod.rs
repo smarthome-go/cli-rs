@@ -45,8 +45,8 @@ pub async fn handle_subcommand(
                 }
             }
             HmsScriptCommand::Clone { ids, all } => workspace::clone(&ids, all, client).await?,
-            HmsScriptCommand::Push => {
-                workspace::push(client, config.homescript.lint_on_push).await?
+            HmsScriptCommand::Push{force} => {
+                workspace::push(client, config.homescript.lint_on_push, force).await?
             }
             HmsScriptCommand::Pull => workspace::pull(client).await?,
         },

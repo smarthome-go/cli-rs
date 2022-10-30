@@ -102,6 +102,7 @@ pub enum HmsScriptCommand {
         ids: Vec<String>,
 
         #[clap(short, long, value_parser)]
+        // Will clone all the user's Homescripts
         all: bool,
     },
     /// Delete a script from the local FS and the server
@@ -111,7 +112,11 @@ pub enum HmsScriptCommand {
         ids: Vec<String>,
     },
     /// Push local changes to the server
-    Push,
+    Push {
+        #[clap(short, long, value_parser)]
+        // Will push the script to the remote even if lint errors were found
+        force: bool,
+    },
     /// Pull any upstream changes to local FS
     Pull,
     /// Runs the Homescript code of a local script
@@ -119,6 +124,7 @@ pub enum HmsScriptCommand {
     /// Lints the Homescript code of a local script
     Lint {
         #[clap(short, long, value_parser)]
+        // Will lint all the user's Homescripts
         all: bool,
     },
 }
