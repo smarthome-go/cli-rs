@@ -14,7 +14,11 @@ pub enum Error {
     InvalidData(String),
     TomlEncode(toml::ser::Error),
     NotAWorkspace,
-    LintErrors(Vec<HomescriptExecError>),
+    LintErrors {
+        errors: Vec<HomescriptExecError>,
+        code: String,
+        filename: String,
+    },
     RunErrors(Vec<HomescriptExecError>),
     InvalidHomescript(String),
     DecodeManifest(toml::de::Error),
@@ -73,7 +77,7 @@ impl Display for Error {
                         Self::NotAWorkspace =>
                         "Not a valid Homescript directory: (missing files?)".to_string(),
                         Self::InvalidHomescript(id) => format!("Cannot perform action on script `{id}`: script does not exist or is inaccessible"),
-                        Self::LintErrors(errors) => format!("Linting discovered problems:\n{}", errors.iter().map(|error|error.to_string()).collect::<Vec<String>>().join("\n")),
+                        Self::LintErrors{errors, code, filename} => format!("Linting discovered problems:\n{}", errors.iter().map(|error|error.display(code, filename)).collect::<Vec<String>>().join("\n\n")),
                         Self::RunErrors(errors) => format!("Homescript terminated with errors:\n{}", errors.iter().map(|error|error.to_string()).collect::<Vec<String>>().join("\n")),
                         Self::Smarthome(err) => format!("Smarthome Error: {err}"),
                         Self::CloneDirAlreadyExists(path) => format!("Cannot clone: directory at `./{path}` already exists."),

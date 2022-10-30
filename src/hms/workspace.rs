@@ -82,22 +82,26 @@ pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
         .await?;
 
     match response.success {
-        true => println!(
-            "{}{}",
-            if lint {
-                "linting discovered no problems.".to_string()
-            } else {
-                format!("program completed with exit-code {}.", response.exit_code)
-            },
-            if !response.output.is_empty() {
-                format!("\n{}", response.output.trim_end())
-            } else {
-                "".to_string()
+        true => {
+            println!(
+                "{}",
+                if lint {
+                    "linting discovered no problems.".to_string()
+                } else {
+                    format!("program completed with exit-code {}.", response.exit_code)
+                },
+            );
+            if !lint && !response.output.is_empty() {
+                println!("{}", response.output.trim_end())
             }
-        ),
+        }
         false => {
             return Err(if lint {
-                Error::LintErrors(response.errors)
+                Error::LintErrors {
+                    errors: response.errors,
+                    code: homescript_code,
+                    filename: format!("{}.hms", manifest.id),
+                }
             } else {
                 Error::RunErrors(response.errors)
             })
@@ -147,7 +151,13 @@ pub async fn push(client: &Client, lint_hook: bool) -> Result<()> {
         {
             Ok(response) => match response.success {
                 true => debug!("Linting discovered no problems"),
-                false => return Err(Error::LintErrors(response.errors)),
+                false => {
+                    return Err(Error::LintErrors {
+                        errors: response.errors,
+                        code: homescript_code,
+                        filename: format!("{}.hms", manifest.id),
+                    })
+                }
             },
             Err(err) => return Err(Error::Smarthome(err)),
         }
