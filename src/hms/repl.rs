@@ -1,4 +1,8 @@
+use crate::hms::errors::Error;
 use std::borrow::Cow::{self, Borrowed, Owned};
+use std::{env, io};
+
+use super::errors::Result;
 
 use rustyline::completion::FilenameCompleter;
 use rustyline::error::ReadlineError;
@@ -47,7 +51,7 @@ impl Highlighter for ReplHelper {
     }
 }
 
-pub async fn start(client: &Client) -> rustyline::Result<()> {
+pub async fn start(client: &Client) -> Result<()> {
     let config = Config::builder()
         .history_ignore_space(true)
         .completion_type(CompletionType::List)
@@ -67,18 +71,28 @@ pub async fn start(client: &Client) -> rustyline::Result<()> {
     rl.bind_sequence(KeyEvent::alt('n'), Cmd::HistorySearchForward);
     rl.bind_sequence(KeyEvent::alt('p'), Cmd::HistorySearchBackward);
 
-    if rl.load_history("history.txt").is_err() {
-        println!("Created history file");
+    let hist_path = match hist_file_path() {
+        Some(path) => path,
+        None => {
+            return Err(Error::IO(io::Error::new(
+                io::ErrorKind::NotFound,
+                "Could not determine history file location: do you have a home?",
+            )));
+        }
+    };
+
+    if rl.load_history(&hist_path).is_err() {
+        println!("Created new REPL history file at `{hist_path}`");
     }
 
-    loop {
-        let username = client.username.clone().unwrap_or_else(|| "e".to_string());
-        let hostname = client
-            .smarthome_url
-            .host()
-            .expect("Client can only exist with a valid URL");
-        let prompt = format!("{}@{}> ", username, hostname);
+    let username = client.username.clone().unwrap_or_else(|| "e".to_string());
+    let hostname = client
+        .smarthome_url
+        .host()
+        .expect("Client can only exist with a valid URL");
+    let prompt = format!("{}@{}> ", username, hostname);
 
+    loop {
         rl.helper_mut().expect("No helper").colored_prompt = format!(
             "\x1b[1;32m{}\x1b[0m@\x1b[1;34m{}\x1b[0m> ",
             username, hostname,
@@ -121,5 +135,18 @@ pub async fn start(client: &Client) -> rustyline::Result<()> {
             }
         }
     }
-    rl.append_history("history.txt")
+    Ok(rl.append_history(&hist_path)?)
+}
+
+pub fn hist_file_path() -> Option<String> {
+    match env::var("HOME") {
+        Ok(home) => {
+            if let Ok(xdg_home) = env::var("XDG_CACHE_HOME") {
+                Some(format!("{}/smarthome.history", xdg_home))
+            } else {
+                Some(format!("{}/.cache/smarthome.history", home))
+            }
+        }
+        Err(_) => None,
+    }
 }
