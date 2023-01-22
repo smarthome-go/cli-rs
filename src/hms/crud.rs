@@ -48,6 +48,7 @@ pub async fn create_script(
             description: "".to_string(),
             quick_actions_enabled: false,
             scheduler_enabled: false,
+            is_widget: false,
             code: "".to_string(),
             md_icon: "code".to_string(),
             workspace,
@@ -55,7 +56,7 @@ pub async fn create_script(
         .await
     {
         Ok(_) => {
-            fs::create_dir_all(&path)?;
+            fs::create_dir_all(path)?;
             let mut homescript_file = File::create(path.join(format!("{id}.hms")))?;
             homescript_file.write_fmt(format_args!("# Homescript `{id}`\n"))?;
 

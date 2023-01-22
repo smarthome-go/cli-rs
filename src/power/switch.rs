@@ -17,9 +17,7 @@ pub async fn toggle_power(client: &Client, switch_ids: &[String]) -> Result<(), 
             Some(switch) => switch.power_on,
             None => return Err(Error::InvalidSwitch(switch.clone())),
         };
-        if let Err(err) = set_power_helper(client, switch, !old_state).await {
-            return Err(err);
-        }
+        set_power_helper(client, switch, !old_state).await?
     }
     Ok(())
 }

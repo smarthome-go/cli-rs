@@ -21,7 +21,7 @@ pub async fn pull(client: &Client) -> Result<()> {
     if !manifest_path.exists() {
         return Err(Error::NotAWorkspace);
     }
-    let manifest: HomescriptMetadata = toml::from_str(&fs::read_to_string(&manifest_path)?)?;
+    let manifest: HomescriptMetadata = toml::from_str(&fs::read_to_string(manifest_path)?)?;
     // Check if the required Homescript file exists
     let homescript_path = format!("{}.hms", manifest.id);
     let homescript_path = Path::new(&homescript_path);
@@ -67,7 +67,7 @@ pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
         return Err(Error::NotAWorkspace);
     }
     // Read & parse the manifest
-    let manifest: HomescriptMetadata = toml::from_str(&fs::read_to_string(&manifest_path)?)?;
+    let manifest: HomescriptMetadata = toml::from_str(&fs::read_to_string(manifest_path)?)?;
     // Check if the Homescript file exists
     let homescript_path = format!("{}.hms", manifest.id);
     let homescript_path = Path::new(&homescript_path);
@@ -133,7 +133,7 @@ pub async fn push(client: &Client, lint_hook: bool, force: bool) -> Result<()> {
         return Err(Error::NotAWorkspace);
     }
     // Read & parse the manifest
-    let manifest: HomescriptMetadata = toml::from_str(&fs::read_to_string(&manifest_path)?)?;
+    let manifest: HomescriptMetadata = toml::from_str(&fs::read_to_string(manifest_path)?)?;
     // Check if the Homescript file exists
     let homescript_path = format!("{}.hms", manifest.id);
     let homescript_path = Path::new(&homescript_path);
@@ -240,7 +240,7 @@ pub fn clone_to_fs(script_data: &HomescriptData) -> Result<()> {
         return Err(Error::CloneDirAlreadyExists(script_data.id.to_string()));
     }
 
-    fs::create_dir_all(&path)?;
+    fs::create_dir_all(path)?;
     let mut homescript_file = File::create(path.join(format!("{}.hms", script_data.id)))?;
     homescript_file.write_all(script_data.code.as_bytes())?;
 

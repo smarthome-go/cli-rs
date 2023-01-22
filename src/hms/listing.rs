@@ -1,4 +1,4 @@
-use std::{vec};
+use std::vec;
 
 use smarthome_sdk_rs::{Client, Homescript};
 use tabled::{format::Format, object::Rows, Modify, Style, TableIteratorExt, Tabled};
@@ -93,8 +93,7 @@ pub async fn lint_personal(client: &Client) -> Result<()> {
         if res
             .errors
             .iter()
-            .find(|diagnostic| diagnostic.kind != "Warning" && diagnostic.kind != "Info")
-            .is_some()
+            .any(|diagnostic| diagnostic.kind != "Warning" && diagnostic.kind != "Info")
         {
             break;
         }

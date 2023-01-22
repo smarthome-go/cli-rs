@@ -156,14 +156,14 @@ pub fn read_config(file_path: &str) -> Result<Option<Config>> {
         true => {
             // The file exists, it can be read
             debug!("Found existing config file at {file_path}");
-            let content = fs::read_to_string(&path)?;
+            let content = fs::read_to_string(path)?;
             let config = toml::from_str(&content)?;
             // Validate the contents of the config file
             Ok(Some(validate_config(config)?))
         }
         false => {
             // The file does not exist, therefore create a new one
-            fs::create_dir_all(&path.parent().unwrap())?;
+            fs::create_dir_all(path.parent().unwrap())?;
             let mut file = File::create(path)?;
             file.write_all(include_bytes!("default_config.toml"))?;
             // In case a few new struct fields must be serialized
