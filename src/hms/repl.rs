@@ -105,7 +105,7 @@ pub async fn start(client: &Client) -> Result<()> {
                     continue;
                 }
 
-                rl.add_history_entry(line.as_str());
+                rl.add_history_entry(line.as_str()).expect("Must write to history file");
                 match client.exec_homescript_code(&line, vec![], false).await {
                     Ok(res) => {
                         match res.success {

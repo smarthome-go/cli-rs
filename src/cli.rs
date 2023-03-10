@@ -30,8 +30,9 @@ pub enum Command {
     #[clap(subcommand)]
     Hms(HmsCommand),
 
-    /// Displays debug information
-    Debug,
+    /// Admin subcommands
+    #[clap(subcommand)]
+    Admin(AdminCommand),
 
     /// Displays the file path of the CLI's configuration file
     Config,
@@ -127,4 +128,13 @@ pub enum HmsScriptCommand {
         // Will lint all the user's Homescripts
         all: bool,
     },
+}
+
+#[derive(Subcommand, PartialEq, Eq)]
+pub enum AdminCommand {
+    // Shows debug information
+    Debug,
+
+    // Exports the server's configuration and writes it into a file
+    Export
 }

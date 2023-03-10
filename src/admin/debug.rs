@@ -1,5 +1,5 @@
 use smarthome_sdk_rs::{Client, Error, HardwareNode};
-use tabled::{object::Rows, format::Format, Modify, Style, TableIteratorExt, Tabled};
+use tabled::{format::Format, object::Rows, Modify, Style, TableIteratorExt, Tabled};
 
 #[derive(Tabled)]
 struct TableHardwareNode {

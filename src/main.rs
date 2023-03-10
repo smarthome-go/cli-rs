@@ -2,7 +2,6 @@ use std::process;
 
 use clap::Parser;
 use cli::{Args, Command};
-use debug::debug;
 use log::{error, info, Level};
 use loggerv::Logger;
 use reqwest::StatusCode;
@@ -10,9 +9,9 @@ use smarthome_sdk_rs::{Auth, Client, User};
 
 mod cli;
 mod config;
-mod debug;
 mod hms;
 mod power;
+mod admin;
 
 #[tokio::main]
 async fn main() {
@@ -126,10 +125,12 @@ async fn main() {
                 error!("{err}");
                 process::exit(1);
             }),
-        Command::Debug => debug(&client).await.unwrap_or_else(|err| {
-            error!("{err}");
-            process::exit(1);
-        }),
+        Command::Admin(sub) => admin::handle_subcommand(sub, &client)
+            .await
+            .unwrap_or_else(|err| {
+                error!("{err}");
+                process::exit(1);
+            }),
         Command::Config => unreachable!("Config should have been covered before"),
     };
 }

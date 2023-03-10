@@ -174,7 +174,7 @@ pub async fn push(client: &Client, lint_hook: bool, force: bool) -> Result<()> {
                         filename: format!("{}.hms", manifest.id),
                     })
                 }
-                false => warn!("Linting discovered errors: force-pushing to remote")
+                false => warn!("Linting discovered errors: force-pushing to remote"),
             },
             Err(err) => return Err(Error::Smarthome(err)),
         }
@@ -245,9 +245,12 @@ pub fn clone_to_fs(script_data: &HomescriptData) -> Result<()> {
     homescript_file.write_all(script_data.code.as_bytes())?;
 
     let mut metadate_file = File::create(path.join(".hms.toml"))?;
-    metadate_file.write_all(&toml::to_vec(&HomescriptMetadata {
-        id: script_data.id.clone(),
-    })?)?;
+    metadate_file.write_all(
+        toml::to_string_pretty(&HomescriptMetadata {
+            id: script_data.id.clone(),
+        })?
+        .as_bytes(),
+    )?;
     info!("Successfully cloned script `{}`", script_data.id);
     Ok(())
 }

@@ -1,6 +1,6 @@
 use smarthome_sdk_rs::Client;
 
-use self::errors::Result;
+use errors::Result;
 use crate::{
     cli::{HmsCommand, HmsScriptCommand},
     config::Config,

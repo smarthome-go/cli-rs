@@ -2,7 +2,7 @@ use smarthome_sdk_rs::Client;
 
 use crate::{cli::PowerCommand, config::Config};
 
-use self::errors::Error;
+use errors::Error;
 
 mod draw;
 mod errors;
