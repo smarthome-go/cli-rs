@@ -105,19 +105,20 @@ pub async fn start(client: &Client) -> Result<()> {
                     continue;
                 }
 
-                rl.add_history_entry(line.as_str()).expect("Must write to history file");
+                rl.add_history_entry(line.as_str())
+                    .expect("Must write to history file");
                 match client.exec_homescript_code(&line, vec![], false).await {
                     Ok(res) => {
-                        match res.success {
-                            true => print!("{}", res.output),
-                            false => eprintln!(
+                        println!("{}", res.output.trim_end());
+                        if !res.success {
+                            eprintln!(
                                 "{}",
                                 res.errors
                                     .iter()
                                     .map(|err| { err.display(&line, "repl") })
                                     .collect::<Vec<String>>()
                                     .join("\n")
-                            ),
+                            );
                         };
                     }
                     Err(err) => {
