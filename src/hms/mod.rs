@@ -11,6 +11,7 @@ mod errors;
 mod listing;
 mod repl;
 mod workspace;
+mod run;
 
 pub async fn handle_subcommand(
     command: HmsCommand,
@@ -19,6 +20,7 @@ pub async fn handle_subcommand(
 ) -> Result<()> {
     match command {
         HmsCommand::Repl => repl::start(client).await?,
+        HmsCommand::Run{scipt_id, args} => run::run_script(client, &scipt_id, &args).await?,
         HmsCommand::Script(sub) => match sub {
             HmsScriptCommand::Run => workspace::exec_current_script(client, false).await?,
             HmsScriptCommand::Lint { all } => match all {

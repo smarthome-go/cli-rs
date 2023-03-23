@@ -18,3 +18,4 @@ tabled = { version = "0.10.0", features = ["color", "derive"] }
 loggerv = "0.7.2"
 smarthome-sdk-rs = {path = "../sdk-rs"}
 chrono = "0.4.23"
+anyhow = "1.0.70"

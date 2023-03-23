@@ -1,3 +1,6 @@
+use std::str::FromStr;
+
+use anyhow::bail;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -79,6 +82,38 @@ pub enum HmsCommand {
     /// Script subcommands
     #[clap(subcommand)]
     Script(HmsScriptCommand),
+    /// Run subcommand
+    Run {
+        /// The ID of the script to execute
+        scipt_id: String,
+        /// The run arguments of the script
+        #[arg(short, long, value_delimiter = ',')]
+        args: Vec<HmsArg>,
+    },
+}
+
+#[derive(PartialEq, Eq, Clone)]
+pub struct HmsArg {
+    pub key: String,
+    pub value: String,
+}
+
+impl FromStr for HmsArg {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parts = s.split(':');
+        let Some(key) = parts.next() else {
+            bail!("Could not parse argument key")
+        };
+        let Some(value) = parts.next() else {
+            bail!("Could not parse argument value")
+        };
+        Ok(Self {
+            key: key.to_string(),
+            value: value.to_string(),
+        })
+    }
 }
 
 #[derive(Subcommand, PartialEq, Eq)]
@@ -136,5 +171,5 @@ pub enum AdminCommand {
     Debug,
 
     // Exports the server's configuration and writes it into a file
-    Export
+    Export,
 }
