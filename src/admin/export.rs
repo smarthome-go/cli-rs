@@ -19,7 +19,10 @@ pub async fn export(client: &Client) -> Result<(), Error> {
         process::exit(1);
     });
 
-    println!("Successfully written export to file `{filename}`, len: {} chars", export.len());
+    println!(
+        "Successfully written export to file `{filename}`, len: {} chars",
+        export.len()
+    );
 
     Ok(())
 }

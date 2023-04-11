@@ -7,11 +7,11 @@ use loggerv::Logger;
 use reqwest::StatusCode;
 use smarthome_sdk_rs::{Auth, Client, User};
 
+mod admin;
 mod cli;
 mod config;
 mod hms;
 mod power;
-mod admin;
 
 #[tokio::main]
 async fn main() {

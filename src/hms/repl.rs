@@ -117,7 +117,9 @@ pub async fn start(client: &Client) -> Result<()> {
                                     .iter()
                                     .map(|err| {
                                         let mut code = line.clone();
-                                        if let Some(new_code) = res.file_contents.get(&err.span.filename) {
+                                        if let Some(new_code) =
+                                            res.file_contents.get(&err.span.filename)
+                                        {
                                             code = new_code.clone();
                                         }
                                         err.display(&code)
