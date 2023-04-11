@@ -35,7 +35,7 @@ pub async fn run_script(client: &Client, id: &str, args: &[HmsArg]) -> Result<()
                     .expect("Executed script can always be found")
                     .data
                     .code,
-                filename: id.to_string(),
+                file_contents: response.file_contents,
             });
         }
     }

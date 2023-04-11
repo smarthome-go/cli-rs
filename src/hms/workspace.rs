@@ -100,8 +100,15 @@ pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
                     response
                         .errors
                         .iter()
-                        .map(|diagnostic| diagnostic
-                            .display(&homescript_code, &format!("{}.hms", manifest.id)))
+                        .map(|diagnostic| {
+                            let mut code = homescript_code.clone();
+                            if let Some(new_code) =
+                                response.file_contents.get(&diagnostic.span.filename)
+                            {
+                                code = new_code.clone();
+                            }
+                            diagnostic.display(&code)
+                        })
                         .collect::<Vec<String>>()
                         .join("\n\n")
                 )
@@ -112,13 +119,13 @@ pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
                 Error::LintErrors {
                     errors: response.errors,
                     code: homescript_code,
-                    filename: format!("{}.hms", manifest.id),
+                    file_contents: response.file_contents,
                 }
             } else {
                 Error::RunErrors {
                     errors: response.errors,
                     code: homescript_code,
-                    filename: format!("{}.hms", manifest.id),
+                    file_contents: response.file_contents,
                 }
             })
         }
@@ -171,7 +178,7 @@ pub async fn push(client: &Client, lint_hook: bool, force: bool) -> Result<()> {
                     return Err(Error::LintErrors {
                         errors: response.errors,
                         code: homescript_code,
-                        filename: format!("{}.hms", manifest.id),
+                        file_contents: response.file_contents,
                     })
                 }
                 false => warn!("Linting discovered errors: force-pushing to remote"),

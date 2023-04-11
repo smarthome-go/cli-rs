@@ -86,7 +86,13 @@ pub async fn lint_personal(client: &Client) -> Result<()> {
             script.data.name,
             res.errors
                 .iter()
-                .map(|diagnostic| diagnostic.display(&script.data.code, &script.data.id))
+                .map(|diagnostic| {
+                    let mut code = script.data.code.clone();
+                    if let Some(new_code) = res.file_contents.get(&diagnostic.span.filename) {
+                        code = new_code.clone();
+                    }
+                    diagnostic.display(&code)
+                })
                 .collect::<Vec<String>>()
                 .join("\n\n"),
         );

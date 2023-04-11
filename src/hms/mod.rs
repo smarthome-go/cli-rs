@@ -1,17 +1,17 @@
 use smarthome_sdk_rs::Client;
 
-use errors::Result;
 use crate::{
     cli::{HmsCommand, HmsScriptCommand},
     config::Config,
 };
+use errors::Result;
 
 mod crud;
 mod errors;
 mod listing;
 mod repl;
-mod workspace;
 mod run;
+mod workspace;
 
 pub async fn handle_subcommand(
     command: HmsCommand,
@@ -20,7 +20,7 @@ pub async fn handle_subcommand(
 ) -> Result<()> {
     match command {
         HmsCommand::Repl => repl::start(client).await?,
-        HmsCommand::Run{scipt_id, args} => run::run_script(client, &scipt_id, &args).await?,
+        HmsCommand::Run { scipt_id, args } => run::run_script(client, &scipt_id, &args).await?,
         HmsCommand::Script(sub) => match sub {
             HmsScriptCommand::Run => workspace::exec_current_script(client, false).await?,
             HmsScriptCommand::Lint { all } => match all {
@@ -47,7 +47,7 @@ pub async fn handle_subcommand(
                 }
             }
             HmsScriptCommand::Clone { ids, all } => workspace::clone(&ids, all, client).await?,
-            HmsScriptCommand::Push{force} => {
+            HmsScriptCommand::Push { force } => {
                 workspace::push(client, config.homescript.lint_on_push, force).await?
             }
             HmsScriptCommand::Pull => workspace::pull(client).await?,

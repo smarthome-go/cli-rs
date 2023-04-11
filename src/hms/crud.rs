@@ -61,7 +61,9 @@ pub async fn create_script(
             homescript_file.write_fmt(format_args!("# Homescript `{id}`\n"))?;
 
             let mut metadate_file = File::create(path.join(".hms.toml"))?;
-            metadate_file.write_all(toml::to_string_pretty(&HomescriptMetadata { id: id.clone() })?.as_bytes())?;
+            metadate_file.write_all(
+                toml::to_string_pretty(&HomescriptMetadata { id: id.clone() })?.as_bytes(),
+            )?;
 
             info!("Successfully created script `{id}`");
             Ok(())

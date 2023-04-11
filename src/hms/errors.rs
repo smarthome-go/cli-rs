@@ -1,4 +1,4 @@
-use std::{fmt::Display, io};
+use std::{collections::HashMap, fmt::Display, io};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -17,12 +17,12 @@ pub enum Error {
     LintErrors {
         errors: Vec<HomescriptExecError>,
         code: String,
-        filename: String,
+        file_contents: HashMap<String, String>,
     },
     RunErrors {
         errors: Vec<HomescriptExecError>,
         code: String,
-        filename: String,
+        file_contents: HashMap<String, String>,
     },
     InvalidHomescript(String),
     DecodeManifest(toml::de::Error),
@@ -81,8 +81,22 @@ impl Display for Error {
                         Self::NotAWorkspace =>
                         "Not a valid Homescript directory: (missing files?)".to_string(),
                         Self::InvalidHomescript(id) => format!("Cannot perform action on script `{id}`: script does not exist or is inaccessible"),
-                        Self::LintErrors{errors, code, filename} => format!("Linting discovered problems:\n{}", errors.iter().map(|error|error.display(code, filename)).collect::<Vec<String>>().join("\n\n")),
-                        Self::RunErrors{errors, code, filename} => format!("Homescript terminated with errors:\n{}", errors.iter().map(|error|error.display(code, filename)).collect::<Vec<String>>().join("\n\n")),
+                        Self::LintErrors{errors, code, file_contents} => format!("Linting discovered problems:\n{}", errors.iter().map(|error| {
+                            let mut code = code.clone();
+                                        if let Some(new_code) = file_contents.get(&error.span.filename) {
+                                            code = new_code.to_string();
+                                        }
+                            error.display(&code)
+                        }) .collect::<Vec<String>>().join("\n\n")),
+                        Self::RunErrors{errors, code,  file_contents} => {
+                            format!("Homescript terminated with errors:\n{}", errors.iter().map(|error| {
+                            let mut code = code.clone();
+                                            if let Some(new_code) = file_contents.get(&error.span.filename) {
+                                                code = new_code.to_string();
+                                            }
+                                            error.display(&code)
+                        }).collect::<Vec<String>>().join("\n\n"))
+                        } ,
                         Self::Smarthome(err) => format!("Smarthome Error: {err}"),
                         Self::CloneDirAlreadyExists(path) => format!("Cannot clone: directory at `./{path}` already exists."),
                 Self::Rustyline(err) => format!("REPL error: {err}"),

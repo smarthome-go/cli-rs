@@ -115,7 +115,13 @@ pub async fn start(client: &Client) -> Result<()> {
                                 "{}",
                                 res.errors
                                     .iter()
-                                    .map(|err| { err.display(&line, "repl") })
+                                    .map(|err| {
+                                        let mut code = line.clone();
+                                        if let Some(new_code) = res.file_contents.get(&err.span.filename) {
+                                            code = new_code.clone();
+                                        }
+                                        err.display(&code)
+                                    })
                                     .collect::<Vec<String>>()
                                     .join("\n")
                             );
