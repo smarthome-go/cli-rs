@@ -5,7 +5,7 @@ use std::{
 };
 
 use log::{debug, info, warn};
-use smarthome_sdk_rs::{Client, Homescript, HomescriptData};
+use smarthome_sdk_rs::{Client, HmsRunMode, Homescript, HomescriptData};
 
 use super::errors::{Error, Result};
 use serde::{Deserialize, Serialize};
@@ -78,7 +78,7 @@ pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
     let homescript_code = fs::read_to_string(homescript_path)?;
     debug!("Found Homescript workspace. Executing...");
     let response = client
-        .exec_homescript_code(&homescript_code, vec![], lint)
+        .exec_homescript_code(&homescript_code, vec![], HmsRunMode::Execute { terminate_with_request: false })
         .await?;
 
     match response.success {
@@ -169,7 +169,13 @@ pub async fn push(client: &Client, lint_hook: bool, force: bool) -> Result<()> {
     // Running the pre-push lint hook if required
     if lint_hook {
         match client
-            .exec_homescript_code(&homescript_code, vec![], true)
+            .exec_homescript_code(
+                &homescript_code,
+                vec![],
+                HmsRunMode::Execute {
+                    terminate_with_request: false,
+                },
+            )
             .await
         {
             Ok(response) => match response.success {

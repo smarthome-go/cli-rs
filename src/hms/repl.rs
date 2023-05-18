@@ -11,7 +11,7 @@ use rustyline::hint::HistoryHinter;
 use rustyline::validate::MatchingBracketValidator;
 use rustyline::{Cmd, CompletionType, Config, EditMode, Editor, KeyEvent};
 use rustyline_derive::{Completer, Helper, Hinter, Validator};
-use smarthome_sdk_rs::Client;
+use smarthome_sdk_rs::{Client, HmsRunMode};
 
 #[derive(Helper, Completer, Hinter, Validator)]
 struct ReplHelper {
@@ -51,7 +51,7 @@ impl Highlighter for ReplHelper {
     }
 }
 
-pub async fn start(client: &Client) -> Result<()> {
+pub async fn start(client: &Client, terminate_with_request: bool) -> Result<()> {
     let config = Config::builder()
         .history_ignore_space(true)
         .completion_type(CompletionType::List)
@@ -107,7 +107,16 @@ pub async fn start(client: &Client) -> Result<()> {
 
                 rl.add_history_entry(line.as_str())
                     .expect("Must write to history file");
-                match client.exec_homescript_code(&line, vec![], false).await {
+                match client
+                    .exec_homescript_code(
+                        &line,
+                        vec![],
+                        HmsRunMode::Execute {
+                            terminate_with_request,
+                        },
+                    )
+                    .await
+                {
                     Ok(res) => {
                         println!("{}", res.output.trim_end());
                         if !res.success {

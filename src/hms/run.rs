@@ -1,4 +1,4 @@
-use smarthome_sdk_rs::{Client, HomescriptArg};
+use smarthome_sdk_rs::{Client, HomescriptArg, HmsRunMode};
 
 use super::errors::{Error, Result};
 use crate::cli::HmsArg;
@@ -13,7 +13,7 @@ pub async fn run_script(client: &Client, id: &str, args: &[HmsArg]) -> Result<()
                     value: &arg.value,
                 })
                 .collect(),
-            false,
+            HmsRunMode::Execute { terminate_with_request: false },
         )
         .await?;
 

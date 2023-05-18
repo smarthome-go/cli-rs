@@ -78,7 +78,11 @@ pub enum PowerCommand {
 #[derive(Subcommand, PartialEq, Eq)]
 pub enum HmsCommand {
     /// Interactive Homescript live terminal
-    Repl,
+    Repl {
+        #[arg(short, long)]
+        /// If set to `true`, the script will be canceled as soon as the REPL is canceled
+        terminate_script_on_interrupt: bool,
+    },
     /// Script subcommands
     #[clap(subcommand)]
     Script(HmsScriptCommand),
@@ -171,5 +175,12 @@ pub enum AdminCommand {
     Debug,
 
     // Exports the server's configuration and writes it into a file
-    Export,
+    Export {
+        #[clap(short, long, value_parser)]
+        // Whether profile pictures should be included in the dump
+        profile_pictures: bool,
+        #[clap(short, long, value_parser)]
+        // Whether cache data should be included in the dump
+        cache_data: bool,
+    },
 }

@@ -1,6 +1,6 @@
 use std::vec;
 
-use smarthome_sdk_rs::{Client, Homescript};
+use smarthome_sdk_rs::{Client, Homescript, HmsRunMode};
 use tabled::{format::Format, object::Rows, Modify, Style, TableIteratorExt, Tabled};
 
 use crate::hms::errors::{Error, Result};
@@ -78,7 +78,7 @@ pub async fn lint_personal(client: &Client) -> Result<()> {
     let homescripts = client.list_personal_homescripts().await?;
     for script in homescripts {
         let res = client
-            .exec_homescript(&script.data.id, vec![], true)
+            .exec_homescript(&script.data.id, vec![], HmsRunMode::Lint)
             .await?;
         println!(
             "\x1b[1;32m=== {} / {} === \x1b[0m \n{}",
