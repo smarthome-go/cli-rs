@@ -1,7 +1,10 @@
 use std::vec;
 
-use smarthome_sdk_rs::{Client, Homescript, HmsRunMode};
-use tabled::{format::Format, object::Rows, Modify, Style, TableIteratorExt, Tabled};
+use smarthome_sdk_rs::{Client, HmsRunMode, Homescript};
+use tabled::{
+    settings::{object::Rows, Format, Modify, Style},
+    Table, Tabled,
+};
 
 use crate::hms::errors::{Error, Result};
 
@@ -15,15 +18,9 @@ pub struct TableHomescriptData {
     pub md_icon: String,
     #[tabled(rename = "Worspace")]
     pub workspace: String,
-    #[tabled(
-        display_with("Self::display_quick_actions", args),
-        rename = "Quick Actions"
-    )]
+    #[tabled(display_with("Self::display_quick_actions"), rename = "Quick Actions")]
     pub quick_actions_enabled: bool,
-    #[tabled(
-        display_with("Self::display_scheduler_enabled", args),
-        rename = "Selection"
-    )]
+    #[tabled(display_with("Self::display_scheduler_enabled"), rename = "Selection")]
     pub scheduler_enabled: bool,
 }
 
@@ -41,16 +38,11 @@ impl From<Homescript> for TableHomescriptData {
 }
 
 impl TableHomescriptData {
-    fn display_quick_actions(&self) -> String {
-        if self.quick_actions_enabled {
-            "on"
-        } else {
-            "off"
-        }
-        .to_string()
+    fn display_quick_actions(quick_actions_enabled: &bool) -> String {
+        if *quick_actions_enabled { "on" } else { "off" }.to_string()
     }
-    fn display_scheduler_enabled(&self) -> String {
-        if self.scheduler_enabled {
+    fn display_scheduler_enabled(scheduler_enabled: &bool) -> String {
+        if *scheduler_enabled {
             "shown"
         } else {
             "hidden"
@@ -64,11 +56,11 @@ pub async fn list_personal(client: &Client) -> Result<()> {
         Ok(response) => response.into_iter().map(TableHomescriptData::from),
         Err(err) => return Err(Error::FetchHomescript(err)),
     };
-    let mut table = homescripts.table();
+    let mut table = Table::new(homescripts);
     println!(
         "{}",
-        table.with(Style::modern().off_horizontal()).with(
-            Modify::new(Rows::first()).with(Format::new(|s| format!("\x1b[1;32m{s}\x1b[1;0m")))
+        table.with(Style::modern().remove_horizontal()).with(
+            Modify::new(Rows::first()).with(Format::content(|s| format!("\x1b[1;32m{s}\x1b[1;0m")))
         )
     );
     Ok(())
@@ -78,7 +70,7 @@ pub async fn lint_personal(client: &Client) -> Result<()> {
     let homescripts = client.list_personal_homescripts().await?;
     for script in homescripts {
         let res = client
-            .exec_homescript(&script.data.id, vec![], HmsRunMode::Lint)
+            .exec_homescript(&script.data.id, vec![], true)
             .await?;
         println!(
             "\x1b[1;32m=== {} / {} === \x1b[0m \n{}",
@@ -96,11 +88,15 @@ pub async fn lint_personal(client: &Client) -> Result<()> {
                 .collect::<Vec<String>>()
                 .join("\n\n"),
         );
-        if res
-            .errors
-            .iter()
-            .any(|diagnostic| diagnostic.kind != "Warning" && diagnostic.kind != "Info")
-        {
+        if res.errors.iter().any(|diagnostic| {
+            diagnostic.syntax_error.is_some() || {
+                if let Some(diagnostic) = diagnostic.diagnostic_error.clone() {
+                    diagnostic.kind >= 2
+                } else {
+                    false
+                }
+            }
+        }) {
             break;
         }
     }

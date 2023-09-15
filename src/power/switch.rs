@@ -1,7 +1,10 @@
 use log::{debug, trace};
 use reqwest::StatusCode;
 use smarthome_sdk_rs::{Client, Error as SdkError};
-use tabled::{format::Format, object::Rows, Modify, Style, TableIteratorExt};
+use tabled::{
+    settings::{format::Format, object::Rows, Modify, Style},
+    Table,
+};
 
 use crate::power::draw::TableSwitch;
 
@@ -71,11 +74,11 @@ pub async fn switch_list(client: &Client, show_all: bool) -> Result<(), Error> {
         Ok(response) => response,
         Err(err) => return Err(Error::GetSwitches(err)),
     };
-    let mut table = switches.into_iter().map(TableSwitch::from).table();
+    let mut table = Table::new(switches.into_iter().map(TableSwitch::from));
     println!(
         "{}",
-        table.with(Style::modern().off_horizontal()).with(
-            Modify::new(Rows::first()).with(Format::new(|s| format!("\x1b[1;32m{s}\x1b[1;0m")))
+        table.with(Style::modern().remove_horizontal()).with(
+            Modify::new(Rows::first()).with(Format::content(|s| format!("\x1b[1;32m{s}\x1b[1;0m")))
         )
     );
     Ok(())

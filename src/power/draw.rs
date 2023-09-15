@@ -1,39 +1,30 @@
 use super::errors::{Error, Result};
 use crate::config::PowerConfig;
 use smarthome_sdk_rs::{Client, PowerDrawPoint, PowerSwitch};
-use tabled::{format::Format, object::Rows, Modify, Style, TableIteratorExt, Tabled};
+use tabled::{
+    settings::{format::Format, object::Rows, Modify, Style},
+    Table, Tabled,
+};
 
 #[derive(Tabled)]
 pub struct TableSwitch {
-    #[tabled(display_with("Self::display_id", args), rename = "ID")]
+    #[tabled(rename = "ID")]
     id: String,
     #[tabled(rename = "Name")]
     name: String,
     #[tabled(rename = "Room ID")]
     room_id: String,
-    #[tabled(display_with("Self::display_watts", args), rename = "Watts")]
+    #[tabled(rename = "Watts")]
     watts: u16,
-    #[tabled(display_with("Self::display_power", args), rename = "Power")]
+    #[tabled(display_with("Self::display_power"), rename = "Power")]
     power_on: bool,
 }
 
 impl TableSwitch {
-    fn display_id(&self) -> String {
-        match self.power_on {
-            true => format!("\x1b[1;32m*\x1b[1;0m {}", self.id),
-            false => format!("\x1b[1;31m.\x1b[1;0m {}", self.id),
-        }
-    }
-    fn display_watts(&self) -> String {
-        match self.power_on {
-            true => format!("\x1b[1;32m{}\x1b[1;0m", self.watts),
-            false => self.watts.to_string(),
-        }
-    }
-    fn display_power(&self) -> String {
-        match self.power_on {
-            true => "on".to_string(),
-            false => "off".to_string(),
+    fn display_power(power_on: &bool) -> String {
+        match *power_on {
+            true => "\x1b[1;32mON\x1b[1;0m".to_string(),
+            false => "\x1b[1;31mOFF\x1b[1;0m".to_string(),
         }
     }
 }
@@ -93,9 +84,14 @@ pub async fn power_draw(
 
     // Only print the table if the simple display is turned off
     if !use_simple_display {
-        let mut table = switches.into_iter().map(TableSwitch::from).table();
-        let table = table.with(Style::modern().off_horizontal()).with(
-            Modify::new(Rows::first()).with(Format::new(|s| format!("\x1b[1;32m{s}\x1b[1;0m"))),
+        let mut table = Table::new(
+            switches
+                .into_iter()
+                .map(|s| TableSwitch::from(s))
+                .collect::<Vec<TableSwitch>>(),
+        );
+        table.with(Style::modern().remove_horizontal()).with(
+            Modify::new(Rows::first()).with(Format::content(|s| format!("\x1b[1;32m{s}\x1b[1;0m"))),
         );
         println!("{}", table);
     }

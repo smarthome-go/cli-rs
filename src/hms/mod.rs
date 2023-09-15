@@ -19,9 +19,7 @@ pub async fn handle_subcommand(
     config: &Config,
 ) -> Result<()> {
     match command {
-        HmsCommand::Repl {
-            terminate_script_on_interrupt,
-        } => repl::start(client, terminate_script_on_interrupt).await?,
+        HmsCommand::Repl => repl::start(client).await?,
         HmsCommand::Run { scipt_id, args } => run::run_script(client, &scipt_id, &args).await?,
         HmsCommand::Script(sub) => match sub {
             HmsScriptCommand::Run => workspace::exec_current_script(client, false).await?,

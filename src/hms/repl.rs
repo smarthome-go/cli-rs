@@ -51,7 +51,7 @@ impl Highlighter for ReplHelper {
     }
 }
 
-pub async fn start(client: &Client, terminate_with_request: bool) -> Result<()> {
+pub async fn start(client: &Client) -> Result<()> {
     let config = Config::builder()
         .history_ignore_space(true)
         .completion_type(CompletionType::List)
@@ -108,17 +108,13 @@ pub async fn start(client: &Client, terminate_with_request: bool) -> Result<()> 
                 rl.add_history_entry(line.as_str())
                     .expect("Must write to history file");
                 match client
-                    .exec_homescript_code(
-                        &line,
-                        vec![],
-                        HmsRunMode::Execute {
-                            terminate_with_request,
-                        },
-                    )
+                    .exec_homescript_code(&line, vec![], HmsRunMode::Execute)
                     .await
                 {
                     Ok(res) => {
-                        println!("{}", res.output.trim_end());
+                        if !res.output.is_empty() {
+                            println!("{}", res.output.trim_end());
+                        }
                         if !res.success {
                             eprintln!(
                                 "{}",
@@ -134,7 +130,7 @@ pub async fn start(client: &Client, terminate_with_request: bool) -> Result<()> 
                                         err.display(&code)
                                     })
                                     .collect::<Vec<String>>()
-                                    .join("\n")
+                                    .join("\n\n")
                             );
                         };
                     }

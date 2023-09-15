@@ -78,11 +78,7 @@ pub enum PowerCommand {
 #[derive(Subcommand, PartialEq, Eq)]
 pub enum HmsCommand {
     /// Interactive Homescript live terminal
-    Repl {
-        #[arg(short, long)]
-        /// If set to `true`, the script will be canceled as soon as the REPL is canceled
-        terminate_script_on_interrupt: bool,
-    },
+    Repl,
     /// Script subcommands
     #[clap(subcommand)]
     Script(HmsScriptCommand),

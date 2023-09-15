@@ -78,7 +78,7 @@ pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
     let homescript_code = fs::read_to_string(homescript_path)?;
     debug!("Found Homescript workspace. Executing...");
     let response = client
-        .exec_homescript_code(&homescript_code, vec![], HmsRunMode::Execute { terminate_with_request: false })
+        .exec_homescript_code(&homescript_code, vec![], HmsRunMode::Execute)
         .await?;
 
     match response.success {
@@ -86,9 +86,9 @@ pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
             println!(
                 "{}",
                 if lint {
-                    "linting discovered no problems.".to_string()
+                    "Linting discovered no problems".to_string()
                 } else {
-                    format!("program completed with exit-code {}.", response.exit_code)
+                    "Program executed successfully".to_string()
                 },
             );
             if !lint && !response.output.is_empty() {
@@ -169,13 +169,7 @@ pub async fn push(client: &Client, lint_hook: bool, force: bool) -> Result<()> {
     // Running the pre-push lint hook if required
     if lint_hook {
         match client
-            .exec_homescript_code(
-                &homescript_code,
-                vec![],
-                HmsRunMode::Execute {
-                    terminate_with_request: false,
-                },
-            )
+            .exec_homescript_code(&homescript_code, vec![], HmsRunMode::Execute)
             .await
         {
             Ok(response) => match response.success {
