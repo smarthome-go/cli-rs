@@ -4,7 +4,7 @@ use std::fmt::Display;
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub enum Error {
-    GetSwitches(SdkError),
+    GetDevices(SdkError),
     GetPowerDrawData(SdkError),
     Unknown(SdkError),
     InvalidSwitch(String),
@@ -22,7 +22,7 @@ impl Display for Error {
                 Self::InvalidSwitch(switch_id) =>
                     format!("The switch `{switch_id}` does not exist"),
                 Self::PermissionDenied(switch_id) => format!("You are either lacking permission to use switches or you do not have access to the switch `{switch_id}`"),
-                Self::GetSwitches(err) => format!("Could not get switches: {err}"),
+                Self::GetDevices(err) => format!("Could not get devices: {err}"),
                     Self::NotEnoughPowerDrawData => "Not enough power draw data: averaging requires more power draw data: please wait a few hours".to_string(),
                 Self::ServerError => "The server was unable to handle this switch".to_string(),
                 Self::Unknown(err) => format!("Unknown error: {err}"),

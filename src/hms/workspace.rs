@@ -78,7 +78,17 @@ pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
     let homescript_code = fs::read_to_string(homescript_path)?;
     debug!("Found Homescript workspace. Executing...");
     let response = client
-        .exec_homescript_code(&homescript_code, vec![], HmsRunMode::Execute)
+        .exec_homescript_code(
+            &homescript_code,
+            vec![],
+            if lint {
+                HmsRunMode::Lint {
+                    module_name: manifest.id.as_str(),
+                }
+            } else {
+                HmsRunMode::Execute
+            },
+        )
         .await?;
 
     match response.success {

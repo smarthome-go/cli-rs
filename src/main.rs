@@ -88,6 +88,7 @@ async fn main() {
             }),
             false => Auth::QueryToken(profile.token.clone()),
         },
+        !args.no_version_check,
     )
     .await
     {

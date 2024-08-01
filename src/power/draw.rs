@@ -1,42 +1,97 @@
+use std::usize;
+
 use super::errors::{Error, Result};
 use crate::config::PowerConfig;
-use smarthome_sdk_rs::{Client, PowerDrawPoint, PowerSwitch};
+use smarthome_sdk_rs::{Client, DeviceCapability, HydratedDeviceResponse, PowerDrawPoint};
 use tabled::{
     settings::{format::Format, object::Rows, Modify, Style},
     Table, Tabled,
 };
 
+pub struct ParsedDevice {
+    pub id: String,
+    pub name: String,
+    pub room_id: String,
+    pub power: Option<ParsedPower>,
+}
+
+pub struct ParsedPower {
+    pub status: bool,
+    pub watts: usize,
+}
+
 #[derive(Tabled)]
-pub struct TableSwitch {
+pub struct TableDevice {
     #[tabled(rename = "ID")]
     id: String,
     #[tabled(rename = "Name")]
     name: String,
     #[tabled(rename = "Room ID")]
     room_id: String,
-    #[tabled(rename = "Watts")]
-    watts: u16,
+    #[tabled(display_with("Self::display_watts"), rename = "Watts")]
+    watts: Option<usize>,
     #[tabled(display_with("Self::display_power"), rename = "Power")]
-    power_on: bool,
+    power_on: Option<bool>,
 }
 
-impl TableSwitch {
-    fn display_power(power_on: &bool) -> String {
+// #[derive(Tabled)]
+// pub struct TablePower {
+//     #[tabled(rename = "Watts")]
+//     watts: usize,
+//     #[tabled(display_with("Self::display_power"), rename = "Power")]
+//     power_on: bool,
+// }
+
+impl TableDevice {
+    fn display_power(power_on: &Option<bool>) -> String {
         match *power_on {
-            true => "\x1b[1;32mON\x1b[1;0m".to_string(),
-            false => "\x1b[1;31mOFF\x1b[1;0m".to_string(),
+            Some(true) => "\x1b[1;32mON\x1b[1;0m".to_string(),
+            Some(false) => "\x1b[1;31mOFF\x1b[1;0m".to_string(),
+            None => "\x1b[1;30mN/A\x1b[1;0m".to_string(),
+        }
+    }
+
+    fn display_watts(watts: &Option<usize>) -> String {
+        match watts {
+            Some(watts) => watts.to_string(),
+            None => "\x1b[1;30mN/A\x1b[1;0m".to_string(),
         }
     }
 }
 
-impl From<PowerSwitch> for TableSwitch {
-    fn from(source: PowerSwitch) -> Self {
+impl From<HydratedDeviceResponse> for ParsedDevice {
+    fn from(source: HydratedDeviceResponse) -> Self {
+        let has_power_capability = source
+            .extractions
+            .config
+            .capabilities
+            .contains(&DeviceCapability::Power);
+
+        let power_info = match (has_power_capability, source.extractions.power_information) {
+            (true, Some(power)) => Some(ParsedPower {
+                watts: power.power_draw_watts,
+                status: power.state,
+            }),
+            (false, _) | (_, None) => None,
+        };
+
+        Self {
+            id: source.shallow.id,
+            name: source.shallow.name,
+            room_id: source.shallow.room_id,
+            power: power_info,
+        }
+    }
+}
+
+impl From<ParsedDevice> for TableDevice {
+    fn from(source: ParsedDevice) -> Self {
         Self {
             id: source.id,
             name: source.name,
             room_id: source.room_id,
-            power_on: source.power_on,
-            watts: source.watts,
+            watts: source.power.as_ref().map(|p| p.watts),
+            power_on: source.power.map(|p| p.status),
         }
     }
 }
@@ -48,19 +103,26 @@ pub async fn power_draw(
 ) -> Result<()> {
     let switches = match client.all_switches().await {
         Ok(response) => response,
-        Err(err) => return Err(Error::GetSwitches(err)),
+        Err(err) => return Err(Error::GetDevices(err)),
     };
 
     let (all, active): (Vec<u32>, Vec<u32>) = switches
-        .iter()
+        .clone()
+        .into_iter()
         .map(|switch| {
-            (switch.watts as u32, {
-                if switch.power_on {
-                    switch.watts as u32
-                } else {
-                    0
-                }
-            })
+            let switch_alt = ParsedDevice::from(switch);
+
+            match switch_alt.power {
+                Some(power) => (
+                    power.watts as u32,
+                    if power.status {
+                        power.watts as u32
+                    } else {
+                        0u32
+                    },
+                ),
+                None => (0u32, 0u32),
+            }
         })
         .unzip();
 
@@ -87,8 +149,8 @@ pub async fn power_draw(
         let mut table = Table::new(
             switches
                 .into_iter()
-                .map(|s| TableSwitch::from(s))
-                .collect::<Vec<TableSwitch>>(),
+                .map(|f| TableDevice::from(ParsedDevice::from(f)))
+                .collect::<Vec<TableDevice>>(),
         );
         table.with(Style::modern().remove_horizontal()).with(
             Modify::new(Rows::first()).with(Format::content(|s| format!("\x1b[1;32m{s}\x1b[1;0m"))),

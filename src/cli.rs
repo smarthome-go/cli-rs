@@ -18,6 +18,10 @@ pub struct Args {
     #[clap(short, long, value_parser, global = true)]
     pub verbose: bool,
 
+    /// If set, no version compatibility check will be performed during connection initialization.
+    #[clap(short, long, value_parser, global = true)]
+    pub no_version_check: bool,
+
     /// Smarthome subcommands
     #[clap(subcommand)]
     pub subcommand: Command,
@@ -44,7 +48,7 @@ pub enum Command {
 #[derive(Subcommand, PartialEq, Eq)]
 pub enum PowerCommand {
     /// Shows the user's personal switches
-    Switches {
+    Devices {
         #[clap(short, long, value_parser)]
         /// Shows all switches which are present on the Smarthome-server
         all: bool,
