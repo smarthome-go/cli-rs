@@ -5,7 +5,7 @@ use std::{
 };
 
 use log::{debug, info, warn};
-use smarthome_sdk_rs::{Client, HmsRunMode, Homescript, HomescriptData};
+use smarthome_sdk_rs::{Client, HmsRunMode, Homescript, HomescriptData, HomescriptType};
 
 use super::errors::{Error, Result};
 use serde::{Deserialize, Serialize};
@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct HomescriptMetadata {
     pub id: String,
+    pub is_driver: bool,
 }
 
 pub async fn pull(client: &Client) -> Result<()> {
@@ -76,7 +77,13 @@ pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
     }
     // Reads the current code
     let homescript_code = fs::read_to_string(homescript_path)?;
+
     debug!("Found Homescript workspace. Executing...");
+
+    if manifest.is_driver && !lint {
+        return Err(Error::InvalidHomescript("Cannot execute Homescript: this is a driver, and can therefore not be executed directly".to_string()));
+    }
+
     let response = client
         .exec_homescript_code(
             &homescript_code,
@@ -84,6 +91,7 @@ pub async fn exec_current_script(client: &Client, lint: bool) -> Result<()> {
             if lint {
                 HmsRunMode::Lint {
                     module_name: manifest.id.as_str(),
+                    is_driver: manifest.is_driver,
                 }
             } else {
                 HmsRunMode::Execute
@@ -179,7 +187,14 @@ pub async fn push(client: &Client, lint_hook: bool, force: bool) -> Result<()> {
     // Running the pre-push lint hook if required
     if lint_hook {
         match client
-            .exec_homescript_code(&homescript_code, vec![], HmsRunMode::Execute)
+            .exec_homescript_code(
+                &homescript_code,
+                vec![],
+                HmsRunMode::Lint {
+                    module_name: manifest.id.as_str(),
+                    is_driver: manifest.is_driver,
+                },
+            )
             .await
         {
             Ok(response) => match response.success {
@@ -265,6 +280,7 @@ pub fn clone_to_fs(script_data: &HomescriptData) -> Result<()> {
     metadate_file.write_all(
         toml::to_string_pretty(&HomescriptMetadata {
             id: script_data.id.clone(),
+            is_driver: script_data.type_ == HomescriptType::Driver,
         })?
         .as_bytes(),
     )?;

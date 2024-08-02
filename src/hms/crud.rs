@@ -9,7 +9,7 @@ use crate::hms::workspace::HomescriptMetadata;
 use super::errors::{Error, Result};
 use log::{debug, info};
 use reqwest::StatusCode;
-use smarthome_sdk_rs::{Client, Error as SdkError, HomescriptData};
+use smarthome_sdk_rs::{Client, Error as SdkError, HomescriptData, HomescriptType};
 
 pub async fn create_script(
     client: &Client,
@@ -45,24 +45,25 @@ pub async fn create_script(
         .create_homescript(&HomescriptData {
             id: id.clone(),
             name,
-            description: "".to_string(),
+            description: "Created through the CLI".to_string(),
             quick_actions_enabled: false,
             scheduler_enabled: false,
             is_widget: false,
             code: "".to_string(),
             md_icon: "code".to_string(),
             workspace,
+            type_: HomescriptType::Normal,
         })
         .await
     {
         Ok(_) => {
             fs::create_dir_all(path)?;
             let mut homescript_file = File::create(path.join(format!("{id}.hms")))?;
-            homescript_file.write_fmt(format_args!("# Homescript `{id}`\n"))?;
+            homescript_file.write_fmt(format_args!("// Homescript `{id}`\n"))?;
 
             let mut metadate_file = File::create(path.join(".hms.toml"))?;
             metadate_file.write_all(
-                toml::to_string_pretty(&HomescriptMetadata { id: id.clone() })?.as_bytes(),
+                toml::to_string_pretty(&HomescriptMetadata { id: id.clone(), is_driver: false })?.as_bytes(),
             )?;
 
             info!("Successfully created script `{id}`");
