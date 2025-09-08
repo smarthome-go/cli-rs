@@ -2,7 +2,7 @@
   description = "Smarthome-CLI";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -14,7 +14,7 @@
       pname = "shome";
       version = "1.0.0";
       src = ./.;
-      cargoSha256 = "sha256-ItP2wDuz9XmJ3BUp+vZuqIU62OtVTBtG67ZqbaFLx+w=";
+      cargoHash = "sha256-oqg53yRnKGG/uFq0ti1ymzHgrKE66psgTQ7nDdpl1ns=";
     };
 
     defaultPackage.x86_64-linux = self.packages.x86_64-linux.shome;
