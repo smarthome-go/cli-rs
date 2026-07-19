@@ -2,7 +2,7 @@ use std::usize;
 
 use super::errors::{Error, Result};
 use crate::config::PowerConfig;
-use smarthome_sdk_rs::{Client, DeviceCapability, HydratedDeviceResponse, PowerDrawPoint};
+use smarthome_sdk_rs::{Client, DeviceCapability, DeviceColor, HydratedDeviceResponse, PowerDrawPoint};
 use tabled::{
     settings::{format::Format, object::Rows, Modify, Style},
     Table, Tabled,
@@ -13,6 +13,7 @@ pub struct ParsedDevice {
     pub name: String,
     pub room_id: String,
     pub power: Option<ParsedPower>,
+    pub color: Option<DeviceColor>,
 }
 
 pub struct ParsedPower {
@@ -32,6 +33,8 @@ pub struct TableDevice {
     watts: Option<usize>,
     #[tabled(display_with("Self::display_power"), rename = "Power")]
     power_on: Option<bool>,
+    #[tabled(display_with("Self::display_color"), rename = "Color")]
+    color: Option<DeviceColor>,
 }
 
 // #[derive(Tabled)]
@@ -57,6 +60,78 @@ impl TableDevice {
             None => "\x1b[1;30mN/A\x1b[1;0m".to_string(),
         }
     }
+
+    fn display_color(color: &Option<DeviceColor>) -> String {
+        match color {
+            Some(c) => format!(
+                "{}██\x1b[0m #{:02x}{:02x}{:02x}",
+                color_escape(c),
+                c.r,
+                c.g,
+                c.b
+            ),
+            None => "\x1b[1;30mN/A\x1b[1;0m".to_string(),
+        }
+    }
+}
+
+/// Returns a foreground escape sequence for the given color.
+/// Uses 24-bit truecolor when the terminal advertises it, otherwise
+/// approximates via the 256-color cube.
+fn color_escape(color: &DeviceColor) -> String {
+    let truecolor = std::env::var("COLORTERM")
+        .map(|v| v.contains("truecolor") || v.contains("24bit"))
+        .unwrap_or(false);
+
+    if truecolor {
+        format!("\x1b[38;2;{};{};{}m", color.r, color.g, color.b)
+    } else {
+        format!("\x1b[38;5;{}m", ansi_256_approx(color))
+    }
+}
+
+/// Maps an RGB color to the closest entry of the xterm 256-color palette
+/// (using the 6x6x6 color cube and the grayscale ramp).
+fn ansi_256_approx(color: &DeviceColor) -> u8 {
+    fn to_cube(v: u8) -> (u8, u8) {
+        // Cube channel values are 0, 95, 135, 175, 215, 255.
+        let idx = if v < 48 {
+            0
+        } else if v < 115 {
+            1
+        } else {
+            (v as u16 - 35) as u8 / 40
+        };
+        (idx, [0u8, 95, 135, 175, 215, 255][idx as usize])
+    }
+
+    let (ri, rv) = to_cube(color.r);
+    let (gi, gv) = to_cube(color.g);
+    let (bi, bv) = to_cube(color.b);
+    let cube_dist = dist(color, rv, gv, bv);
+
+    // Grayscale ramp: indices 232..=255 with values 8, 18, ..., 238.
+    let gray_avg = (color.r as u16 + color.g as u16 + color.b as u16) / 3;
+    let gray_idx = if gray_avg > 238 {
+        23
+    } else {
+        (gray_avg.saturating_sub(3) / 10) as u8
+    };
+    let gray_val = 8 + 10 * gray_idx;
+    let gray_dist = dist(color, gray_val, gray_val, gray_val);
+
+    if gray_dist < cube_dist {
+        232 + gray_idx
+    } else {
+        16 + 36 * ri + 6 * gi + bi
+    }
+}
+
+fn dist(color: &DeviceColor, r: u8, g: u8, b: u8) -> u32 {
+    let dr = color.r as i32 - r as i32;
+    let dg = color.g as i32 - g as i32;
+    let db = color.b as i32 - b as i32;
+    (dr * dr + dg * dg + db * db) as u32
 }
 
 impl From<HydratedDeviceResponse> for ParsedDevice {
@@ -75,11 +150,22 @@ impl From<HydratedDeviceResponse> for ParsedDevice {
             (false, _) | (_, None) => None,
         };
 
+        let has_color_capability = source
+            .extractions
+            .config
+            .capabilities
+            .contains(&DeviceCapability::Color);
+
         Self {
             id: source.shallow.id,
             name: source.shallow.name,
             room_id: source.shallow.room_id,
             power: power_info,
+            color: if has_color_capability {
+                source.extractions.color
+            } else {
+                None
+            },
         }
     }
 }
@@ -92,6 +178,7 @@ impl From<ParsedDevice> for TableDevice {
             room_id: source.room_id,
             watts: source.power.as_ref().map(|p| p.watts),
             power_on: source.power.map(|p| p.status),
+            color: source.color,
         }
     }
 }

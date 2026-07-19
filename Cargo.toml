@@ -19,3 +19,7 @@ loggerv = "0.7.2"
 smarthome-sdk-rs = { version = "0.13.0" }
 chrono = "0.4.24"
 anyhow = "1.0.71"
+
+# Use the local SDK until 0.13.1 (adds the `color` device capability) is published.
+[patch.crates-io]
+smarthome-sdk-rs = { path = "../sdk-rs" }
