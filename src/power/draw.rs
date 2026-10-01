@@ -1,77 +1,78 @@
-use std::usize;
+use anstream::println;
+use serde::{Serialize, Serializer};
+use smarthome_sdk_rs::{Client, DeviceCapability, DeviceColor, HydratedDeviceResponse, PowerDrawPoint};
+use tabled::Tabled;
 
 use super::errors::{Error, Result};
-use crate::config::PowerConfig;
-use smarthome_sdk_rs::{Client, DeviceCapability, DeviceColor, HydratedDeviceResponse, PowerDrawPoint};
-use tabled::{
-    settings::{format::Format, object::Rows, Modify, Style},
-    Table, Tabled,
+use crate::{
+    config::PowerConfig,
+    term::{self, BAD, BOLD, DIM, GOOD, paint},
 };
 
+#[derive(Serialize)]
 pub struct ParsedDevice {
     pub id: String,
     pub name: String,
     pub room_id: String,
     pub power: Option<ParsedPower>,
+    #[serde(serialize_with = "serialize_color")]
     pub color: Option<DeviceColor>,
 }
 
+#[derive(Serialize)]
 pub struct ParsedPower {
+    #[serde(rename = "on")]
     pub status: bool,
     pub watts: usize,
 }
 
+fn hex(color: &DeviceColor) -> String {
+    format!("#{:02x}{:02x}{:02x}", color.r, color.g, color.b)
+}
+
+fn serialize_color<S: Serializer>(color: &Option<DeviceColor>, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+    color.as_ref().map(hex).serialize(serializer)
+}
+
 #[derive(Tabled)]
-pub struct TableDevice {
+pub struct DeviceRow {
     #[tabled(rename = "ID")]
     id: String,
     #[tabled(rename = "Name")]
     name: String,
     #[tabled(rename = "Room ID")]
     room_id: String,
-    #[tabled(display_with("Self::display_watts"), rename = "Watts")]
+    #[tabled(display = "display_watts", rename = "Watts")]
     watts: Option<usize>,
-    #[tabled(display_with("Self::display_power"), rename = "Power")]
+    #[tabled(display = "display_power", rename = "Power")]
     power_on: Option<bool>,
-    #[tabled(display_with("Self::display_color"), rename = "Color")]
+    #[tabled(display = "display_color", rename = "Color")]
     color: Option<DeviceColor>,
 }
 
-// #[derive(Tabled)]
-// pub struct TablePower {
-//     #[tabled(rename = "Watts")]
-//     watts: usize,
-//     #[tabled(display_with("Self::display_power"), rename = "Power")]
-//     power_on: bool,
-// }
+fn not_available() -> String {
+    paint(DIM, "N/A")
+}
 
-impl TableDevice {
-    fn display_power(power_on: &Option<bool>) -> String {
-        match *power_on {
-            Some(true) => "\x1b[1;32mON\x1b[1;0m".to_string(),
-            Some(false) => "\x1b[1;31mOFF\x1b[1;0m".to_string(),
-            None => "\x1b[1;30mN/A\x1b[1;0m".to_string(),
-        }
+fn display_power(power_on: &Option<bool>) -> String {
+    match *power_on {
+        Some(true) => paint(GOOD, "ON"),
+        Some(false) => paint(BAD, "OFF"),
+        None => not_available(),
     }
+}
 
-    fn display_watts(watts: &Option<usize>) -> String {
-        match watts {
-            Some(watts) => watts.to_string(),
-            None => "\x1b[1;30mN/A\x1b[1;0m".to_string(),
-        }
+fn display_watts(watts: &Option<usize>) -> String {
+    match watts {
+        Some(watts) => watts.to_string(),
+        None => not_available(),
     }
+}
 
-    fn display_color(color: &Option<DeviceColor>) -> String {
-        match color {
-            Some(c) => format!(
-                "{}██\x1b[0m #{:02x}{:02x}{:02x}",
-                color_escape(c),
-                c.r,
-                c.g,
-                c.b
-            ),
-            None => "\x1b[1;30mN/A\x1b[1;0m".to_string(),
-        }
+fn display_color(color: &Option<DeviceColor>) -> String {
+    match color {
+        Some(color) => format!("{}██\x1b[0m {}", color_escape(color), hex(color)),
+        None => not_available(),
     }
 }
 
@@ -136,13 +137,11 @@ fn dist(color: &DeviceColor, r: u8, g: u8, b: u8) -> u32 {
 
 impl From<HydratedDeviceResponse> for ParsedDevice {
     fn from(source: HydratedDeviceResponse) -> Self {
-        let has_power_capability = source
-            .extractions
-            .config
-            .capabilities
-            .contains(&DeviceCapability::Power);
+        let capabilities = &source.extractions.config.capabilities;
+        let has_power_capability = capabilities.contains(&DeviceCapability::Power);
+        let has_color_capability = capabilities.contains(&DeviceCapability::Color);
 
-        let power_info = match (has_power_capability, source.extractions.power_information) {
+        let power = match (has_power_capability, source.extractions.power_information) {
             (true, Some(power)) => Some(ParsedPower {
                 watts: power.power_draw_watts,
                 status: power.state,
@@ -150,27 +149,20 @@ impl From<HydratedDeviceResponse> for ParsedDevice {
             (false, _) | (_, None) => None,
         };
 
-        let has_color_capability = source
-            .extractions
-            .config
-            .capabilities
-            .contains(&DeviceCapability::Color);
-
         Self {
             id: source.shallow.id,
             name: source.shallow.name,
             room_id: source.shallow.room_id,
-            power: power_info,
-            color: if has_color_capability {
-                source.extractions.color
-            } else {
-                None
+            power,
+            color: match has_color_capability {
+                true => source.extractions.color,
+                false => None,
             },
         }
     }
 }
 
-impl From<ParsedDevice> for TableDevice {
+impl From<ParsedDevice> for DeviceRow {
     fn from(source: ParsedDevice) -> Self {
         Self {
             id: source.id,
@@ -183,90 +175,111 @@ impl From<ParsedDevice> for TableDevice {
     }
 }
 
+#[derive(Serialize)]
+struct PowerDrawReport {
+    devices: Vec<ParsedDevice>,
+    current: CurrentDraw,
+    last_24_hours: Last24Hours,
+}
+
+#[derive(Serialize)]
+struct CurrentDraw {
+    active_watts: usize,
+    passive_watts: usize,
+    total_watts: usize,
+}
+
+#[derive(Serialize)]
+struct Last24Hours {
+    kwh: f64,
+    cost: f64,
+    currency: char,
+    peak_watts: usize,
+}
+
 pub async fn power_draw(
     client: &Client,
     config: &PowerConfig,
     use_simple_display: bool,
+    json: bool,
 ) -> Result<()> {
-    let switches = match client.all_switches().await {
-        Ok(response) => response,
-        Err(err) => return Err(Error::GetDevices(err)),
-    };
-
-    let (all, active): (Vec<u32>, Vec<u32>) = switches
-        .clone()
+    let devices: Vec<ParsedDevice> = term::spin("Fetching devices", client.all_switches())
+        .await
+        .map_err(Error::GetDevices)?
         .into_iter()
-        .map(|switch| {
-            let switch_alt = ParsedDevice::from(switch);
+        .map(ParsedDevice::from)
+        .collect();
 
-            match switch_alt.power {
-                Some(power) => (
-                    power.watts as u32,
-                    if power.status {
-                        power.watts as u32
-                    } else {
-                        0u32
-                    },
-                ),
-                None => (0u32, 0u32),
-            }
-        })
-        .unzip();
-
-    let power_total = all.into_iter().sum::<u32>();
-    let power_active = active.into_iter().sum::<u32>();
-    let power_passive = power_total - power_active;
-
-    let historic_data = match client.power_usage(false).await {
-        Ok(response) => response,
-        Err(err) => return Err(Error::GetPowerDrawData(err)),
-    };
-
-    let kwh_24_hours = kwh_total(&historic_data)?;
-    let peak_24_hours = match historic_data
+    let total_watts: usize = devices.iter().filter_map(|d| d.power.as_ref()).map(|p| p.watts).sum();
+    let active_watts: usize = devices
         .iter()
-        .max_by_key(|measurement| measurement.on.watts)
-    {
-        Some(max) => max.on.watts,
-        None => return Err(Error::NotEnoughPowerDrawData),
+        .filter_map(|d| d.power.as_ref())
+        .filter(|p| p.status)
+        .map(|p| p.watts)
+        .sum();
+    let current = CurrentDraw {
+        active_watts,
+        passive_watts: total_watts - active_watts,
+        total_watts,
     };
+
+    let historic_data = term::spin("Fetching power usage", client.power_usage(false))
+        .await
+        .map_err(Error::GetPowerDrawData)?;
+    let kwh = kwh_total(&historic_data)?;
+    let last_24_hours = Last24Hours {
+        kwh,
+        cost: kwh * config.cost_per_kwh,
+        currency: config.unit_symbol,
+        peak_watts: historic_data
+            .iter()
+            .map(|measurement| measurement.on.watts)
+            .max()
+            .ok_or(Error::NotEnoughPowerDrawData)?,
+    };
+
+    if json {
+        let report = PowerDrawReport {
+            devices,
+            current,
+            last_24_hours,
+        };
+        println!("{}", serde_json::to_string_pretty(&report)?);
+        return Ok(());
+    }
 
     // Only print the table if the simple display is turned off
     if !use_simple_display {
-        let mut table = Table::new(
-            switches
-                .into_iter()
-                .map(|f| TableDevice::from(ParsedDevice::from(f)))
-                .collect::<Vec<TableDevice>>(),
-        );
-        table.with(Style::modern().remove_horizontal()).with(
-            Modify::new(Rows::first()).with(Format::content(|s| format!("\x1b[1;32m{s}\x1b[1;0m"))),
-        );
-        println!("{}", table);
+        println!("{}\n", term::table(devices.into_iter().map(DeviceRow::from)));
     }
 
+    let percent = |watts: usize| match current.total_watts {
+        0 => 0.0,
+        total => watts as f64 * 100.0 / total as f64,
+    };
     println!(
-        "=== Current Power Draw ===
-  Active  \x1b[1;32m*\x1b[1;0m {:>4} W ({:>3.0} %)
-  Passive \x1b[1;31m.\x1b[1;0m {:>4} W ({:>3.0} %)
+        "{}
+  Active  {} {:>4} W ({:>3.0} %)
+  Passive {} {:>4} W ({:>3.0} %)
   Total   Σ {:>4} W (100 %)
-  ",
-        power_active,
-        power_active as f64 * 100.0 / power_total as f64,
-        power_passive,
-        power_passive as f64 * 100.0 / power_total as f64,
-        power_total,
-    );
 
-    println!(
-        "\n=== 24-Hour Metrics    ===
-  Used    Σ {:>3.2} KWh
+{}
+  Used    Σ {:>3.2} kWh
   Cost      {:>3.2} {}
   Peak      {:>3} W",
-        kwh_24_hours,
-        kwh_24_hours * config.cost_per_kwh,
-        config.unit_symbol,
-        peak_24_hours,
+        paint(BOLD, "Current power draw"),
+        paint(GOOD, "*"),
+        current.active_watts,
+        percent(current.active_watts),
+        paint(BAD, "."),
+        current.passive_watts,
+        percent(current.passive_watts),
+        current.total_watts,
+        paint(BOLD, "Last 24 hours"),
+        last_24_hours.kwh,
+        last_24_hours.cost,
+        last_24_hours.currency,
+        last_24_hours.peak_watts,
     );
 
     Ok(())

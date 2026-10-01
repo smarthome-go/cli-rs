@@ -1,25 +1,32 @@
 [package]
 name = "smarthome-cli"
-version = "0.1.0"
-edition = "2021"
+version = "0.2.0"
+edition = "2024"
+description = "Command-line interface for the Smarthome server"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-clap = { version = "4.3.0", features = ["derive"] }
-rustyline = "11.0.0"
-rustyline-derive = "0.8.0"
-tokio = { version = "1.28.1", features = ["full"] }
-serde = "1.0.163"
-toml = "0.7.4"
-log = "0.4.17"
-reqwest = { version = "0.11.18", default-features = false }
-tabled = { version = "0.12.0", features = ["color", "derive"] }
-loggerv = "0.7.2"
-smarthome-sdk-rs = { version = "0.13.0" }
-chrono = "0.4.24"
-anyhow = "1.0.71"
+[[bin]]
+name = "shome"
+path = "src/main.rs"
 
-# Use the local SDK until 0.13.1 (adds the `color` device capability) is published.
-[patch.crates-io]
-smarthome-sdk-rs = { path = "../sdk-rs" }
+[dependencies]
+anstream = "1.0.0"
+anstyle = "1.0.14"
+anyhow = "1.0.104"
+chrono = "0.4.45"
+clap = { version = "4.6.7", features = ["derive", "wrap_help"] }
+clap_complete = "4.6.11"
+indicatif = "0.18.6"
+log = { version = "0.4.28", features = ["std"] }
+rustyline = "18.0.1"
+rustyline-derive = "0.12.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.151"
+sha2 = "0.11.0"
+similar = "3.2.0"
+# Use the local SDK until 0.14.0 is published.
+smarthome-sdk-rs = { version = "0.14.0", path = "../sdk-rs" }
+tabled = { version = "0.22.0", features = ["ansi", "derive"] }
+tokio = { version = "1.53.1", features = ["full"] }
+toml = "1.1.6"

@@ -17,29 +17,25 @@ pub async fn handle_subcommand(
     command: HmsCommand,
     client: &Client,
     config: &Config,
+    json: bool,
 ) -> Result<()> {
     match command {
-        HmsCommand::Repl => repl::start(client).await?,
-        HmsCommand::Run { scipt_id, args } => run::run_script(client, &scipt_id, &args).await?,
+        HmsCommand::Repl => repl::start(client, config.homescript.use_repl_history).await?,
+        HmsCommand::Run { script_id, args } => run::run_script(client, &script_id, &args).await?,
         HmsCommand::Script(sub) => match sub {
             HmsScriptCommand::Run => workspace::exec_current_script(client, false).await?,
             HmsScriptCommand::Lint { all } => match all {
                 true => listing::lint_personal(client).await?,
                 false => workspace::exec_current_script(client, true).await?,
             },
-            HmsScriptCommand::Ls => listing::list_personal(client).await?,
+            HmsScriptCommand::Ls => listing::list_personal(client, json).await?,
             HmsScriptCommand::New {
                 id,
                 name,
                 workspace,
             } => {
-                crud::create_script(
-                    client,
-                    id.clone(),
-                    name.unwrap_or_else(|| id.clone()),
-                    workspace.unwrap_or_else(|| "default".to_string()),
-                )
-                .await?
+                let name = name.unwrap_or_else(|| id.clone());
+                crud::create_script(client, id, name, workspace).await?
             }
             HmsScriptCommand::Del { ids } => {
                 for script_id in &ids {
@@ -47,10 +43,12 @@ pub async fn handle_subcommand(
                 }
             }
             HmsScriptCommand::Clone { ids, all } => workspace::clone(&ids, all, client).await?,
-            HmsScriptCommand::Push { force } => {
-                workspace::push(client, config.homescript.lint_on_push, force).await?
+            HmsScriptCommand::Status { all } => workspace::status(client, all, json).await?,
+            HmsScriptCommand::Diff { all } => workspace::diff(client, all).await?,
+            HmsScriptCommand::Push { force, all } => {
+                workspace::push(client, config.homescript.lint_on_push, force, all).await?
             }
-            HmsScriptCommand::Pull => workspace::pull(client).await?,
+            HmsScriptCommand::Pull { force, all } => workspace::pull(client, force, all).await?,
         },
     }
     Ok(())

@@ -1,104 +1,98 @@
-use std::vec;
+use anstream::println;
+use log::info;
+use serde::Serialize;
+use smarthome_sdk_rs::{Client, Homescript, HomescriptType};
+use tabled::Tabled;
 
-use smarthome_sdk_rs::{Client, HmsRunMode, Homescript};
-use tabled::{
-    settings::{object::Rows, Format, Modify, Style},
-    Table, Tabled,
+use crate::{
+    hms::errors::{Error, Result, render_diagnostics},
+    term::{self, ACCENT, paint},
 };
 
-use crate::hms::errors::{Error, Result};
-
-#[derive(Tabled)]
-pub struct TableHomescriptData {
+#[derive(Tabled, Serialize)]
+pub struct ScriptRow {
     #[tabled(rename = "ID")]
     pub id: String,
     #[tabled(rename = "Name")]
     pub name: String,
+    #[tabled(display = "display_driver", rename = "Type")]
+    pub is_driver: bool,
     #[tabled(rename = "Icon")]
+    #[serde(rename = "icon")]
     pub md_icon: String,
-    #[tabled(rename = "Worspace")]
+    #[tabled(rename = "Workspace")]
     pub workspace: String,
-    #[tabled(display_with("Self::display_quick_actions"), rename = "Quick Actions")]
+    #[tabled(display = "display_on_off", rename = "Quick Actions")]
     pub quick_actions_enabled: bool,
-    #[tabled(display_with("Self::display_scheduler_enabled"), rename = "Selection")]
+    #[tabled(display = "display_shown_hidden", rename = "Selection")]
     pub scheduler_enabled: bool,
 }
 
-impl From<Homescript> for TableHomescriptData {
+impl From<Homescript> for ScriptRow {
     fn from(source: Homescript) -> Self {
         Self {
             id: source.data.id,
             name: source.data.name,
-            quick_actions_enabled: source.data.quick_actions_enabled,
-            scheduler_enabled: source.data.scheduler_enabled,
+            is_driver: source.data.type_ == HomescriptType::Driver,
             md_icon: source.data.md_icon,
             workspace: source.data.workspace,
+            quick_actions_enabled: source.data.quick_actions_enabled,
+            scheduler_enabled: source.data.scheduler_enabled,
         }
     }
 }
 
-impl TableHomescriptData {
-    fn display_quick_actions(quick_actions_enabled: &bool) -> String {
-        if *quick_actions_enabled { "on" } else { "off" }.to_string()
-    }
-    fn display_scheduler_enabled(scheduler_enabled: &bool) -> String {
-        if *scheduler_enabled {
-            "shown"
-        } else {
-            "hidden"
-        }
-        .to_string()
-    }
+fn display_driver(is_driver: &bool) -> &'static str {
+    if *is_driver { "driver" } else { "script" }
 }
 
-pub async fn list_personal(client: &Client) -> Result<()> {
-    let homescripts = match client.list_personal_homescripts().await {
-        Ok(response) => response.into_iter().map(TableHomescriptData::from),
-        Err(err) => return Err(Error::FetchHomescript(err)),
-    };
-    let mut table = Table::new(homescripts);
-    println!(
-        "{}",
-        table.with(Style::modern().remove_horizontal()).with(
-            Modify::new(Rows::first()).with(Format::content(|s| format!("\x1b[1;32m{s}\x1b[1;0m")))
-        )
-    );
+fn display_on_off(enabled: &bool) -> &'static str {
+    if *enabled { "on" } else { "off" }
+}
+
+fn display_shown_hidden(shown: &bool) -> &'static str {
+    if *shown { "shown" } else { "hidden" }
+}
+
+pub async fn list_personal(client: &Client, json: bool) -> Result<()> {
+    let scripts = term::spin("Fetching scripts", client.list_personal_homescripts()).await?;
+    let rows = scripts.into_iter().map(ScriptRow::from);
+    match json {
+        true => println!("{}", serde_json::to_string_pretty(&rows.collect::<Vec<_>>())?),
+        false => println!("{}", term::table(rows)),
+    }
     Ok(())
 }
 
 pub async fn lint_personal(client: &Client) -> Result<()> {
-    let homescripts = client.list_personal_homescripts().await?;
-    for script in homescripts {
-        let res = client
-            .exec_homescript(&script.data.id, vec![], true)
-            .await?;
-        println!(
-            "\x1b[1;32m=== {} / {} === \x1b[0m \n{}",
-            script.data.id,
-            script.data.name,
-            res.errors
-                .iter()
-                .map(|diagnostic| {
-                    let mut code = script.data.code.clone();
-                    if let Some(new_code) = res.file_contents.get(&diagnostic.span.filename) {
-                        code = new_code.clone();
-                    }
-                    diagnostic.display(&code)
-                })
-                .collect::<Vec<String>>()
-                .join("\n\n"),
-        );
-        if res.errors.iter().any(|diagnostic| {
-            diagnostic.syntax_error.is_some() || {
-                if let Some(diagnostic) = diagnostic.diagnostic_error.clone() {
-                    diagnostic.kind >= 2
-                } else {
-                    false
-                }
-            }
-        }) {
-            break;
+    let scripts = term::spin("Fetching scripts", client.list_personal_homescripts()).await?;
+    let total = scripts.len();
+    let (mut failed, mut with_diagnostics) = (0, 0);
+
+    for (index, script) in scripts.iter().enumerate() {
+        let response = term::spin(
+            format!("Linting {} ({}/{total})", script.data.id, index + 1),
+            client.exec_homescript(&script.data.id, vec![], true),
+        )
+        .await?;
+
+        if !response.success {
+            failed += 1;
         }
+        if response.errors.is_empty() {
+            continue;
+        }
+        with_diagnostics += 1;
+        println!(
+            "{}\n{}\n",
+            paint(ACCENT, format_args!("=== {} ({}) ===", script.data.id, script.data.name)),
+            render_diagnostics(&response.errors, &script.data.code, &response.file_contents)
+        );
     }
-    Ok(())
+
+    info!("Linted {total} scripts: {failed} with errors, {with_diagnostics} with diagnostics");
+    match failed {
+        0 => Ok(()),
+        failed => Err(Error::Failed { failed, total }),
+    }
 }

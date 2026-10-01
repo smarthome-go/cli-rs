@@ -1,43 +1,34 @@
+use anstream::print;
+use log::info;
 use smarthome_sdk_rs::{Client, HomescriptArg};
 
 use super::errors::{Error, Result};
-use crate::cli::HmsArg;
+use crate::{cli::HmsArg, term};
 
 pub async fn run_script(client: &Client, id: &str, args: &[HmsArg]) -> Result<()> {
-    let response = client
-        .exec_homescript(
-            id,
-            args.iter()
-                .map(|arg| HomescriptArg {
-                    key: &arg.key,
-                    value: &arg.value,
-                })
-                .collect(),
-            false,
-        )
-        .await?;
+    let args = args
+        .iter()
+        .map(|arg| HomescriptArg {
+            key: &arg.key,
+            value: &arg.value,
+        })
+        .collect();
+    let response = term::spin(format!("Running {id}"), client.exec_homescript(id, args, false)).await?;
 
-    match response.success {
-        true => {
-            println!("Program finished successfully");
-            if !response.output.is_empty() {
-                println!("{}", response.output.trim_end())
-            }
-        }
-        false => {
-            let script = client.list_personal_homescripts().await?;
-
-            return Err(Error::RunErrors {
-                errors: response.errors,
-                code: script
-                    .into_iter()
-                    .find(|script| script.data.id == id)
-                    .expect("Executed script can always be found")
-                    .data
-                    .code,
-                file_contents: response.file_contents,
-            });
-        }
+    if !response.success {
+        let scripts = client.list_personal_homescripts().await?;
+        return Err(Error::RunErrors {
+            errors: response.errors,
+            code: scripts
+                .into_iter()
+                .find(|script| script.data.id == id)
+                .map(|script| script.data.code)
+                .unwrap_or_default(),
+            file_contents: response.file_contents,
+        });
     }
+
+    info!("Program executed successfully");
+    print!("{}", response.output);
     Ok(())
 }

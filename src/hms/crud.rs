@@ -1,15 +1,13 @@
-use std::{
-    fs::{self, File},
-    io::Write,
-    path::Path,
-};
+use std::{fs, path::Path};
 
-use crate::hms::workspace::HomescriptMetadata;
-
-use super::errors::{Error, Result};
 use log::{debug, info};
-use reqwest::StatusCode;
-use smarthome_sdk_rs::{Client, Error as SdkError, HomescriptData, HomescriptType};
+use smarthome_sdk_rs::{Client, HomescriptData, HomescriptType, StatusCode};
+
+use super::{
+    errors::{Error, Result},
+    workspace::Workspace,
+};
+use crate::term::{self, GOOD, paint};
 
 pub async fn create_script(
     client: &Client,
@@ -17,10 +15,7 @@ pub async fn create_script(
     name: String,
     workspace: String,
 ) -> Result<()> {
-    let path = id.to_string();
-    let path = Path::new(&path);
-
-    if path.exists() {
+    if Path::new(&id).exists() {
         return Err(Error::ScriptAlreadyExists(id));
     }
 
@@ -40,64 +35,43 @@ pub async fn create_script(
         ));
     }
 
+    let script = HomescriptData {
+        id: id.clone(),
+        name,
+        description: "Created through the CLI".to_string(),
+        quick_actions_enabled: false,
+        scheduler_enabled: false,
+        is_widget: false,
+        code: String::new(),
+        md_icon: "code".to_string(),
+        workspace,
+        type_: HomescriptType::Normal,
+    };
+
     debug!("Creating script `{id}` at `./{id}`...");
-    match client
-        .create_homescript(&HomescriptData {
-            id: id.clone(),
-            name,
-            description: "Created through the CLI".to_string(),
-            quick_actions_enabled: false,
-            scheduler_enabled: false,
-            is_widget: false,
-            code: "".to_string(),
-            md_icon: "code".to_string(),
-            workspace,
-            type_: HomescriptType::Normal,
-        })
-        .await
-    {
-        Ok(_) => {
-            fs::create_dir_all(path)?;
-            let mut homescript_file = File::create(path.join(format!("{id}.hms")))?;
-            homescript_file.write_fmt(format_args!("// Homescript `{id}`\n"))?;
+    // The server explains validation failures (such as a duplicate ID) itself
+    term::spin(format!("Creating {id}"), client.create_homescript(&script)).await?;
 
-            let mut metadate_file = File::create(path.join(".hms.toml"))?;
-            metadate_file.write_all(
-                toml::to_string_pretty(&HomescriptMetadata { id: id.clone(), is_driver: false })?.as_bytes(),
-            )?;
-
-            info!("Successfully created script `{id}`");
-            Ok(())
-        }
-        Err(err) => Err(match err {
-            SdkError::Smarthome(code) => match code {
-                StatusCode::UNPROCESSABLE_ENTITY => Error::ScriptAlreadyExists(id.to_string()),
-                code => Error::Smarthome(SdkError::Smarthome(code)),
-            },
-            _ => Error::Smarthome(err),
-        }),
-    }
+    // The local starter code counts as a local change, so the next push uploads it
+    Workspace::create(&script, &format!("// Homescript `{id}`\n"))?;
+    info!("{} script `{id}` in `./{id}`", paint(GOOD, "Created"));
+    Ok(())
 }
 
 pub async fn delete_script(client: &Client, id: &str) -> Result<()> {
     debug!("Deleting script `{id}`...");
-    match client.delete_homescript(id).await {
+    match term::spin(format!("Deleting {id}"), client.delete_homescript(id)).await {
         Ok(_) => {
-            let path = format!("./{id}");
-            let path = Path::new(path.as_str());
-
+            let path = Path::new(id);
             if path.exists() {
                 fs::remove_dir_all(path)?;
             }
-            info!("Successfully deleted script `{id}`");
+            info!("{} script `{id}`", paint(GOOD, "Deleted"));
             Ok(())
         }
-        Err(err) => Err(match err {
-            SdkError::Smarthome(code) => match code {
-                StatusCode::UNPROCESSABLE_ENTITY => Error::ScriptDoesNotExist(id.to_string()),
-                StatusCode::CONFLICT => Error::ScriptHasDependentAutomations(id.to_string()),
-                code => Error::Smarthome(SdkError::Smarthome(code)),
-            },
+        Err(err) => Err(match err.status() {
+            Some(StatusCode::UNPROCESSABLE_ENTITY) => Error::ScriptDoesNotExist(id.to_string()),
+            Some(StatusCode::CONFLICT) => Error::ScriptHasDependentAutomations(id.to_string()),
             _ => Error::Smarthome(err),
         }),
     }

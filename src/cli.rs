@@ -1,81 +1,103 @@
 use std::str::FromStr;
 
 use anyhow::bail;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
+use clap_complete::Shell;
 
 #[derive(Parser)]
-#[clap(author, version, about)]
+#[command(name = "shome", author, version, about)]
 pub struct Args {
-    /// Selects the target Smarthome server by the provided ID
-    #[clap(short, long, value_parser)]
+    /// Selects the target Smarthome server by the ID it has in the config file
+    #[arg(short, long)]
     pub server: Option<String>,
 
-    /// The path where the configuration file should be located
-    #[clap(short, long, value_parser)]
+    /// Path of the config file [default: $XDG_CONFIG_HOME/smarthome-cli-rs/config.toml]
+    #[arg(short, long)]
     pub config_path: Option<String>,
 
-    /// If set, more information will be printed to the console
-    #[clap(short, long, value_parser, global = true)]
+    /// Print debug information
+    #[arg(short, long, global = true)]
     pub verbose: bool,
 
-    /// If set, no version compatibility check will be performed during connection initialization.
-    #[clap(short, long, value_parser, global = true)]
+    /// Skip the server version compatibility check when connecting
+    #[arg(short, long, global = true)]
     pub no_version_check: bool,
 
-    /// Smarthome subcommands
-    #[clap(subcommand)]
+    /// Print machine-readable JSON instead of tables (listing and status commands)
+    #[arg(long, global = true)]
+    pub json: bool,
+
+    /// When to use colors
+    #[arg(long, global = true, value_enum, default_value_t = ColorMode::Auto)]
+    pub color: ColorMode,
+
+    #[command(subcommand)]
     pub subcommand: Command,
+}
+
+#[derive(ValueEnum, Clone, Copy, PartialEq, Eq)]
+pub enum ColorMode {
+    /// Use colors when printing to a terminal and `NO_COLOR` is not set
+    Auto,
+    Always,
+    Never,
 }
 
 #[derive(Subcommand, PartialEq, Eq)]
 pub enum Command {
-    /// Power subcommands
-    #[clap(subcommand)]
+    /// Devices and power usage
+    #[command(subcommand)]
     Power(PowerCommand),
 
-    /// Homescript subcommands
-    #[clap(subcommand)]
+    /// Homescript scripts, workspaces and the live REPL
+    #[command(subcommand)]
     Hms(HmsCommand),
 
-    /// Admin subcommands
-    #[clap(subcommand)]
+    /// Server administration
+    #[command(subcommand)]
     Admin(AdminCommand),
 
-    /// Displays the file path of the CLI's configuration file
+    /// Prints the path of the CLI's configuration file
     Config,
+
+    /// Prints a shell completion script, e.g. `shome completions zsh > ~/.zfunc/_shome`
+    Completions {
+        /// The shell to generate completions for
+        shell: Shell,
+    },
 }
 
 #[derive(Subcommand, PartialEq, Eq)]
 pub enum PowerCommand {
-    /// Shows the user's personal switches
+    /// Lists your devices
     Devices {
-        #[clap(short, long, value_parser)]
-        /// Shows all switches which are present on the Smarthome-server
+        /// List all devices on the server instead of only yours
+        #[arg(short, long)]
         all: bool,
     },
-    /// Displays power current power draw and a historic summary
+    /// Shows the current power draw and the usage of the last 24 hours
     Draw {
-        #[clap(short, long, value_parser)]
-        /// Hides the table and only shows the most relevant information
+        /// Only show the summary, not the device table
+        #[arg(short, long)]
         simple: bool,
     },
-    /// Toggles the power state of a switch
+    /// Toggles the power state of devices
     Toggle {
-        /// A list of switch-ids to toggle (individually)
-        #[clap(required = true)]
-        switch_ids: Vec<String>,
+        /// IDs of the devices to toggle (individually)
+        #[arg(required = true)]
+        device_ids: Vec<String>,
     },
-    /// Activates a switch
+    /// Turns devices on
     On {
-        /// A list of switch-ids to activate
-        #[clap(required = true)]
-        switch_ids: Vec<String>,
+        /// IDs of the devices to turn on
+        #[arg(required = true)]
+        device_ids: Vec<String>,
     },
-    /// Deactivates a switch
+    /// Turns devices off
     Off {
-        /// A list of switch-id,s to deactivate
-        #[clap(required = true)]
-        switch_ids: Vec<String>,
+        /// IDs of the devices to turn off
+        #[arg(required = true)]
+        device_ids: Vec<String>,
     },
 }
 
@@ -83,14 +105,14 @@ pub enum PowerCommand {
 pub enum HmsCommand {
     /// Interactive Homescript live terminal
     Repl,
-    /// Script subcommands
-    #[clap(subcommand)]
+    /// Manage scripts and local script workspaces
+    #[command(subcommand)]
     Script(HmsScriptCommand),
-    /// Run subcommand
+    /// Runs a script on the server by its ID
     Run {
         /// The ID of the script to execute
-        scipt_id: String,
-        /// The run arguments of the script
+        script_id: String,
+        /// Arguments as `key:value` pairs, separated by commas
         #[arg(short, long, value_delimiter = ',')]
         args: Vec<HmsArg>,
     },
@@ -106,12 +128,9 @@ impl FromStr for HmsArg {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut parts = s.split(':');
-        let Some(key) = parts.next() else {
-            bail!("Could not parse argument key")
-        };
-        let Some(value) = parts.next() else {
-            bail!("Could not parse argument value")
+        // Only split at the first colon so that values may contain colons (e.g. URLs)
+        let Some((key, value)) = s.split_once(':') else {
+            bail!("expected an argument of the form `key:value`")
         };
         Ok(Self {
             key: key.to_string(),
@@ -122,65 +141,109 @@ impl FromStr for HmsArg {
 
 #[derive(Subcommand, PartialEq, Eq)]
 pub enum HmsScriptCommand {
-    /// Displays a list of personal Homescripts
+    /// Lists your scripts on the server
     Ls,
-    /// Create a new Homescript locally and on the remote
+    /// Creates a new script on the server and a workspace for it in `./<id>`
     New {
         /// A unique ID for the new script
         id: String,
-        #[clap(short, long, value_parser)]
-        /// A friendly name for the new script
+        /// A friendly name for the new script [default: the ID]
+        #[arg(long)]
         name: Option<String>,
-        /// A workspace to be associated with the new script
-        #[clap(short, long, value_parser)]
-        workspace: Option<String>,
+        /// The workspace (group) the script belongs to on the server
+        #[arg(short, long, default_value = "default")]
+        workspace: String,
     },
-    /// Clone an existing script from the server to the local FS
+    /// Clones scripts from the server into local workspaces (`./<id>`)
     Clone {
-        /// The ID(s) of the script(s) to be cloned
-        #[clap(required = true, conflicts_with = "all")]
+        /// The ID(s) of the script(s) to clone
+        #[arg(required_unless_present = "all", conflicts_with = "all")]
         ids: Vec<String>,
-
-        #[clap(short, long, value_parser)]
-        // Will clone all the user's Homescripts
+        /// Clone all of your scripts
+        #[arg(short, long)]
         all: bool,
     },
-    /// Delete a script from the local FS and the server
+    /// Deletes scripts from the server and their local workspaces
     Del {
-        /// The ID(s) of the script(s) to be deleted
-        #[clap(required = true)]
+        /// The ID(s) of the script(s) to delete
+        #[arg(required = true)]
         ids: Vec<String>,
     },
-    /// Push local changes to the server
-    Push {
-        #[clap(short, long, value_parser)]
-        // Will push the script to the remote even if lint errors were found
-        force: bool,
+    /// Shows whether local workspaces and the server are in sync
+    ///
+    /// Without `--all`, the current workspace is checked; outside of a workspace,
+    /// all workspaces directly below the current directory are.
+    Status {
+        /// Check all workspaces directly below the current directory
+        #[arg(short, long)]
+        all: bool,
     },
-    /// Pull any upstream changes to local FS
-    Pull,
-    /// Runs the Homescript code of a local script
+    /// Shows the changes between the server's copy and the local code
+    Diff {
+        /// Diff all workspaces directly below the current directory
+        #[arg(short, long)]
+        all: bool,
+    },
+    /// Uploads local changes to the server
+    Push {
+        /// Push even if linting fails or the server's copy changed since the last sync
+        #[arg(short, long)]
+        force: bool,
+        /// Push all workspaces directly below the current directory
+        #[arg(short, long)]
+        all: bool,
+    },
+    /// Downloads the server's changes into the local workspace
+    Pull {
+        /// Pull even if this discards local changes
+        #[arg(short, long)]
+        force: bool,
+        /// Pull all workspaces directly below the current directory
+        #[arg(short, long)]
+        all: bool,
+    },
+    /// Runs the local code of the current workspace on the server
     Run,
-    /// Lints the Homescript code of a local script
+    /// Lints the local code of the current workspace
     Lint {
-        #[clap(short, long, value_parser)]
-        // Will lint all the user's Homescripts
+        /// Lint all of your scripts on the server instead
+        #[arg(short, long)]
         all: bool,
     },
 }
 
 #[derive(Subcommand, PartialEq, Eq)]
 pub enum AdminCommand {
-    // Shows debug information
+    /// Shows the server's version, runtime and database status
     Debug,
-
-    // Exports the server's configuration and writes it into a file
+    /// Exports the server's configuration into a JSON file in the current directory
     Export {
-        #[clap(short, long, value_parser)]
-        // Whether profile pictures should be included in the dump
+        /// Include profile pictures in the export
+        #[arg(short, long)]
         profile_pictures: bool,
-        #[clap(short, long, value_parser)]
-        // Whether cache data should be included in the dump
+        /// Include cache data in the export
+        #[arg(short, long)]
         cache_data: bool,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::CommandFactory;
+
+    use super::*;
+
+    #[test]
+    fn cli_definition_is_valid() {
+        // Catches conflicting flags (e.g. a global short flag reused by a subcommand)
+        Args::command().debug_assert();
+    }
+
+    #[test]
+    fn args_may_contain_colons() {
+        let arg: HmsArg = "url:http://home.edu:80".parse().unwrap();
+        assert_eq!(arg.key, "url");
+        assert_eq!(arg.value, "http://home.edu:80");
+        assert!("no-colon".parse::<HmsArg>().is_err());
+    }
 }

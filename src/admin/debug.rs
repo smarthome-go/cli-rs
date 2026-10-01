@@ -1,73 +1,47 @@
-use smarthome_sdk_rs::{Client, Error, HardwareNode};
-use tabled::{
-    settings::{format::Format, object::Rows, Modify, Style},
-    Table, Tabled,
-};
+use anstream::println;
+use smarthome_sdk_rs::Client;
 
-#[derive(Tabled)]
-struct TableHardwareNode {
-    #[tabled(rename = "Name")]
-    pub name: String,
-    #[tabled(display_with("Self::display_online"), rename = "Status")]
-    pub online: bool,
-    #[tabled(display_with("Self::display_enabled"), rename = "Enabled")]
-    pub enabled: bool,
-    #[tabled(rename = "URL")]
-    pub url: String,
-    #[tabled(rename = "Token")]
-    pub token: String,
-}
+use crate::term::{self, BAD, BOLD, GOOD, paint};
 
-impl From<HardwareNode> for TableHardwareNode {
-    fn from(source: HardwareNode) -> Self {
-        Self {
-            name: source.name,
-            online: source.online,
-            enabled: source.enabled,
-            url: source.url,
-            token: source.token,
-        }
+pub async fn debug(client: &Client, json: bool) -> anyhow::Result<()> {
+    let info = term::spin("Fetching debug information", client.debug_info()).await?;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&info)?);
+        return Ok(());
     }
-}
 
-impl TableHardwareNode {
-    fn display_online(online: &bool) -> String {
-        {
-            if *online {
-                "\x1b[1;32mONLINE\x1b[1;0m"
-            } else {
-                "\x1b[1;31mOFFLINE\x1b[1;0m"
-            }
-        }
-        .to_string()
+    let db = &info.database_stats;
+    let rows = [
+        ("Server", format!("{} ({})", info.server_version, info.go_version)),
+        (
+            "Runtime",
+            format!(
+                "{} CPU cores, {} goroutines, {} MiB memory",
+                info.cpu_cores, info.goroutines, info.memory_usage
+            ),
+        ),
+        (
+            "Database",
+            format!(
+                "{} ({} open connections, {} in use, {} idle)",
+                match info.database_online {
+                    true => paint(GOOD, "online"),
+                    false => paint(BAD, "offline"),
+                },
+                db.open_connections,
+                db.in_use,
+                db.idle
+            ),
+        ),
+        ("Homescript", format!("{} running jobs", info.homescript_job_count)),
+        (
+            "Time",
+            format!("{:02}:{:02}:{:02}", info.time.hours, info.time.minutes, info.time.seconds),
+        ),
+    ];
+    for (label, value) in rows {
+        println!("{} {value}", paint(BOLD, format_args!("{label:<10}")));
     }
-    fn display_enabled(enabled: &bool) -> String {
-        {
-            if *enabled {
-                "\x1b[1;32mENABLED\x1b[1;0m"
-            } else {
-                "\x1b[1;31mDISABLED\x1b[1;0m"
-            }
-        }
-        .to_string()
-    }
-}
-
-pub async fn debug(client: &Client) -> Result<(), Error> {
-    let debug_info = client.debug_info().await?;
-
-    let mut table = Table::new(
-        debug_info
-            .hardware_nodes
-            .into_iter()
-            .map(|n| TableHardwareNode::from(n))
-            .collect::<Vec<TableHardwareNode>>(),
-    );
-    table.with(Style::modern().remove_horizontal()).with(
-        Modify::new(Rows::first()).with(Format::content(|s| format!("\x1b[1;32m{s}\x1b[1;0m"))),
-    );
-
-    println!("{table}",);
-
     Ok(())
 }
